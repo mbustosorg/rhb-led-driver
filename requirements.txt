@@ -1,0 +1,19 @@
+# Runtime dependencies for the LED driver Pi.
+# Target: Raspberry Pi OS Bookworm, Python 3.11+ (tomllib is stdlib from 3.11).
+#   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+# OSC in: sensor readings from the rig (/pressure, /temperature, ...) and
+# pattern control from TouchOSC.  Same library rhb-sensor-monitor uses.
+python-osc>=1.9
+
+# E1.31 (sACN) out to the Falcon F16V5 over Ethernet.
+sacn>=1.9
+
+# Vectorized per-pixel pattern math (the adopted Pixelblaze primitives).
+numpy>=1.26
+
+# Likely later, uncomment when needed:
+# gpiozero        # if the poof button gets wired straight to this Pi's GPIO
+#                 # (build the venv with --system-site-packages to use the
+#                 # apt python3-lgpio backend)
+# Pillow          # porting lindsay-50 image/2-D patterns onto the strips

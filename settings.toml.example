@@ -1,0 +1,13 @@
+# Copy to settings.toml (gitignored) and run from this directory.
+# Environment variables of the same name override these.
+
+# OSC listener.  The rig's senders unicast to a fixed port on every listener.
+OSC_LISTEN_IP = "0.0.0.0"
+OSC_LISTEN_PORT = 8888
+
+# Local address on the interface facing the F16V5; "" lets the OS choose.
+SACN_BIND_IP = ""
+
+LAYOUT_FILE = "config/layout.toml"
+DEFAULT_PATTERN = "instruments"
+LOG_LEVEL = "INFO"

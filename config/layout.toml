@@ -1,0 +1,31 @@
+# Physical LED layout and the F16V5 it is wired to.
+#
+# Each segment is one run of pixels on the car.  It starts on its own sACN
+# universe so the F16V5 port setup is easy to read: in the controller's
+# String Ports page, set each port's start channel to universe `start_universe`
+# channel 1 and its pixel count to `pixels`.  One universe carries 170 RGB
+# pixels, so a 300-pixel segment spans 2 universes.
+#
+# PIXEL COUNTS AND ADDRESSES ARE PLACEHOLDERS -- measure the real runs.
+
+[controller]
+host = "192.168.1.20"   # F16V5 address (static; the rig has no DHCP)
+fps = 40
+# Brightness ceiling 0..1, applied after the pattern.  Keeps power draw and
+# the current through long runs sane no matter what a pattern asks for.
+max_brightness = 0.6
+
+[[segment]]
+name = "hose"           # overhead hose
+pixels = 300
+start_universe = 1
+
+[[segment]]
+name = "handle"
+pixels = 60
+start_universe = 3
+
+[[segment]]
+name = "gauge"          # 4' pressure gauge off the back
+pixels = 144
+start_universe = 4
