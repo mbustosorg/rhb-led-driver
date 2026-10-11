@@ -1,8 +1,12 @@
 """The LED segments on the car and where they live in sACN universe space."""
 
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+
+import numpy as np
+
+from rhb_led_driver.geometry import segment_points
 
 PIXELS_PER_UNIVERSE = 170  # 510 of 512 DMX channels, RGB
 
@@ -12,6 +16,8 @@ class Segment:
     name: str
     pixels: int
     start_universe: int
+    # (pixels, 2) physical x,y of each pixel; see geometry.py
+    xy: np.ndarray | None = field(default=None, compare=False, repr=False)
 
     @property
     def universes(self) -> range:
@@ -37,7 +43,10 @@ def load_layout(path: Path) -> Layout:
     with open(path, "rb") as f:
         raw = tomllib.load(f)
     controller = raw["controller"]
-    segments = tuple(Segment(s["name"], int(s["pixels"]), int(s["start_universe"])) for s in raw["segment"])
+    segments = tuple(
+        Segment(s["name"], int(s["pixels"]), int(s["start_universe"]), segment_points(s, int(s["pixels"]), path.parent))
+        for s in raw["segment"]
+    )
     layout = Layout(
         host=controller["host"],
         fps=float(controller.get("fps", 40)),

@@ -1,26 +1,35 @@
-# Every file in this directory that came from lindsay-50.
+# Every file in this repo that came from lindsay-50.  `local` is relative to
+# the repo root.
 # scripts/adopted_drift.py reads this to diff each file against the
 # commit it was taken from (our edits) and against lindsay-50 HEAD
 # (their edits since).  Bump `commit` after pulling in upstream changes.
 #
 # mode = "verbatim"  copied whole; the drift script diffs it line for line
-# mode = "extract"   only part of the upstream file was taken; drift is
-#                    reported as "upstream changed" only, not diffed
+# mode = "extract"   only part of the upstream file was taken
+# mode = "port"      rewritten to fit this project (e.g. a pattern moved off
+#                    the matrix onto pixel coordinates)
+# For extract and port, drift is reported as "upstream changed" only, not diffed.
 
 [[file]]
-local = "config_reader.py"
+local = "rhb_led_driver/adopted/config_reader.py"
 upstream = "lib_shared/config_reader.py"
 commit = "c98fde6"
 mode = "verbatim"
 
 [[file]]
-local = "log_setup.py"
+local = "rhb_led_driver/adopted/log_setup.py"
 upstream = "lib_shared/log_setup.py"
 commit = "c98fde6"
 mode = "verbatim"
 
 [[file]]
-local = "pixelblaze.py"
+local = "rhb_led_driver/adopted/pixelblaze.py"
 upstream = "lib_shared/patterns/honeycomb.py"
 commit = "c98fde6"
 mode = "extract"
+
+[[file]]
+local = "rhb_led_driver/patterns/honeycomb.py"
+upstream = "lib_shared/patterns/honeycomb.py"
+commit = "c98fde6"
+mode = "port"

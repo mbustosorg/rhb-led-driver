@@ -84,3 +84,17 @@ class SensorState:
         """Seconds since the value last went from off to on -- a button press."""
         at = self._rises.get(name)
         return None if at is None else self._clock() - at
+
+    def snapshot(self) -> dict:
+        """Every sensor's address, last value, age and staleness, for display."""
+        out = {}
+        for sensor in self._by_name.values():
+            reading = self._readings.get(sensor.name)
+            age = None if reading is None else self._clock() - reading.at
+            out[sensor.name] = {
+                "address": sensor.address,
+                "value": None if reading is None else reading.value,
+                "age": age,
+                "live": age is not None and age <= sensor.stale_after,
+            }
+        return out

@@ -6,7 +6,14 @@
 # channel 1 and its pixel count to `pixels`.  One universe carries 170 RGB
 # pixels, so a 300-pixel segment spans 2 universes.
 #
-# PIXEL COUNTS AND ADDRESSES ARE PLACEHOLDERS -- measure the real runs.
+# Each segment also gives its shape -- the x,y of every pixel -- with one of
+# `path`, `arc` or `points_file` (see rhb_led_driver/geometry.py).  All
+# segments share one frame so spatial patterns line up across them.  Here:
+# inches, looking at the car from the driver's side, x from the front bumper
+# toward the back, y up from the ground.  The gauge's face is turned into
+# that plane.  Check a layout with scripts/preview_layout.py.
+#
+# PIXEL COUNTS, ADDRESSES AND SHAPES ARE PLACEHOLDERS -- measure the real runs.
 
 [controller]
 host = "192.168.1.20"   # F16V5 address (static; the rig has no DHCP)
@@ -19,13 +26,18 @@ max_brightness = 0.6
 name = "hose"           # overhead hose
 pixels = 300
 start_universe = 1
+path = [[20, 96], [90, 102], [160, 96]]
 
 [[segment]]
 name = "handle"
 pixels = 60
 start_universe = 3
+path = [[150, 40], [150, 70]]
 
 [[segment]]
 name = "gauge"          # 4' pressure gauge off the back
 pixels = 144
 start_universe = 4
+# Rim of a 4' dial, sweeping clockwise from lower left over the top to lower
+# right, the way a gauge needle travels.
+arc = { center = [200, 60], radius = 22, start_deg = 225, end_deg = -45 }

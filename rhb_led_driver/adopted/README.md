@@ -10,7 +10,8 @@ over there can never break the car, and nothing here is off limits to edit.
    no `sys.path` tricks.
 2. **Every adopted file starts with the adoption header** (source path and
    commit) ending at `# --- end adoption header ---`, and has an entry in
-   `manifest.toml`.
+   `manifest.toml`.  Shared helpers live here in `adopted/`; ported patterns
+   live with the other patterns in `rhb_led_driver/patterns/`.
 3. **Edit freely.**  Once adopted, the file is ours.  If you change something
    worth keeping, note it in the header's second line.
 4. **Check drift before pulling upstream fixes:**
@@ -31,6 +32,15 @@ Fix its imports (`lib_shared.x` becomes `rhb_led_driver.adopted.x`) and
 record that in the header.  If only part of a file is useful, take that part
 and mark it `mode = "extract"`.
 
+## Porting a lindsay-50 pattern
+
+The sign's patterns compute a color for every (x, y) of a 64x64 panel.  Here
+the same math runs at each pixel's `self.uv` (see `patterns/base.py`), so a
+port is mostly: replace the meshgrid with the concatenated uv of all
+segments, take time from `render(now, ...)`, write the result into
+`frame[segment]`, and drop `set_brightness` (output.py handles brightness).
+`patterns/honeycomb.py` is the worked example.  Mark it `mode = "port"`.
+
 ## What was taken, and what was not
 
 | File | From | Why |
@@ -38,11 +48,10 @@ and mark it `mode = "extract"`.
 | `config_reader.py` | `lib_shared/config_reader.py` | `settings.toml` plus env-var override, fail-fast on missing keys, secrets masked in the log |
 | `log_setup.py` | `lib_shared/log_setup.py` | Same log format and Pacific timestamps as the sign |
 | `pixelblaze.py` | `lib_shared/patterns/honeycomb.py` (extract) | `wave` / `triangle` / `hsv_to_rgb`, vectorized |
+| `../patterns/honeycomb.py` | `lib_shared/patterns/honeycomb.py` (port) | The honeycomb pattern on pixel coordinates |
 
 **Not taken: `effect_base.py` / `display_base.py`.**  Those model a 2-D
 HUB75 matrix (a `Bitmap` of palette indices blitted with `SetPixel`).  The
 F16V5 drives 1-D pixel strings, so patterns here render straight into numpy
 `(pixels, 3)` arrays per segment (`rhb_led_driver/patterns/base.py`).  The
-lindsay-50 *patterns* (honeycomb, metaballs, fireworks...) port easily when
-needed: they compute a numpy RGB frame, and you sample it along a segment's
-pixel coordinates.
+lindsay-50 *patterns* port onto pixel coordinates instead; see "Porting a lindsay-50 pattern" above.

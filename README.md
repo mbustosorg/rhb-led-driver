@@ -18,11 +18,14 @@ Layout
       main.py           OSC server + fixed-rate render loop
       sensors.py        OSC address -> sensor name, staleness, button edges
       layout.py         segments and their sACN universes (config/layout.toml)
+      geometry.py       x,y of every pixel from each segment's path / arc / CSV
       output.py         sACN to the F16V5, or nothing (--dry-run)
+      simulator.py/.html  live browser view and controls (--sim)
       patterns/         one file per pattern; registry in __init__.py
       adopted/          code copied from lindsay-50 -- see adopted/README.md
     config/layout.toml  pixel counts, universes, controller address, brightness cap
     scripts/adopted_drift.py   compare adopted code with lindsay-50
+    scripts/preview_layout.py  draw the layout, colored by a pattern, as an SVG
 
 Setup
 -----
@@ -75,6 +78,47 @@ To update code later, turn the overlay off first: `sudo raspi-config` ->
 Performance Options -> Overlay File System -> No (and No to read-only boot),
 reboot, `git pull`, turn it back on, reboot.  The same script, kept
 identical, is in `rhb-sensor-monitor`.
+
+Simulator
+---------
+
+    .venv/bin/python -m rhb_led_driver --sim --dry-run     # then open http://127.0.0.1:8080/
+
+The real driver runs, and a page draws every pixel at its layout position,
+live, exactly as sent to the F16V5 (brightness cap included).  The page can
+switch patterns, set brightness, and fake each sensor: tick **drive** to
+send a value twice a second like the real senders, untick it to watch the
+pattern fall back when the value goes stale, and hold the poof button (or
+Space).  The page's controls go through the same routes as OSC, so TouchOSC
+or the rig's real sensors can drive the simulator at the same time.
+
+Without `--dry-run`, `--sim` also sends sACN, so on the car
+`--sim --sim-host 0.0.0.0` shows what the lights are doing on a phone at
+`http://<pi>:8080/`.  Only do that on the rig's own network: the page has
+no login and anyone who can reach it can change the pattern.
+
+Pixel positions
+---------------
+
+Every segment in `config/layout.toml` says where its pixels are, in one
+shared frame for the whole car (inches, suggested), with exactly one of:
+
+    path = [[20, 96], [90, 102], [160, 96]]     # polyline, pixels evenly spaced
+    arc = { center = [200, 60], radius = 22, start_deg = 225, end_deg = -45 }
+    points_file = "handle.csv"                  # one x,y row per pixel, measured
+
+Pixels run in wiring order: the first pixel sits on the first path point, the
+arc's `start_deg`, or the CSV's first row.  Patterns get three views of each
+segment (`patterns/base.py`): `pos` (0..1 along the run), `xy` (inches) and
+`uv` (normalized over the whole car, Pixelblaze style), so a 2-D pattern
+paints one picture across the hose, handle and gauge together.
+
+Check a layout, or what a pattern does in space, with no hardware:
+
+    .venv/bin/python scripts/preview_layout.py -p honeycomb -t 5 -o preview.svg
+    .venv/bin/python scripts/preview_layout.py -p instruments -s /pressure=40 -s /temperature=150
+
+Each segment's first pixel is ringed, so a run wired backwards shows up.
 
 Sensors
 -------

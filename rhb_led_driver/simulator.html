@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RHB LED Simulator</title>
+<style>
+  :root {
+    --bg: #0b0b0d;
+    --panel: #16161a;
+    --line: #26262c;
+    --text: #e8e6e3;
+    --muted: #8a8890;
+    --accent: #ff7a1a;
+    --live: #3ccf7a;
+    --stale: #e0a530;
+    --none: #5a5960;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+    border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .02em; }
+  header .spacer { flex: 1; }
+  .badge { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--none); }
+  .dot.live { background: var(--live); } .dot.stale { background: var(--stale); }
+  main { flex: 1; display: flex; min-height: 0; }
+  #stage { flex: 1; position: relative; min-width: 0; min-height: 300px; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  aside { width: 320px; flex: none; overflow-y: auto; background: var(--panel);
+    border-left: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; gap: 20px; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+    margin: 0 0 8px; font-weight: 600; }
+  .patterns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .patterns button { flex: 1 1 auto; }
+  button { font: inherit; color: var(--text); background: #222228; border: 1px solid var(--line);
+    border-radius: 6px; padding: 7px 10px; cursor: pointer; }
+  button:hover { border-color: #3a3a42; }
+  button.on { background: var(--accent); border-color: var(--accent); color: #111; font-weight: 600; }
+  .sensor { padding: 10px 0; border-top: 1px solid var(--line); }
+  .sensor:first-of-type { border-top: 0; padding-top: 0; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .name { font-weight: 500; }
+  .addr { color: var(--muted); font: 11px ui-monospace, Menlo, monospace; }
+  .reading { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px;
+    display: inline-flex; align-items: center; gap: 6px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); margin: 8px 0 2px; }
+  label.drive { font-size: 12px; color: var(--muted); display: inline-flex; gap: 5px; align-items: center;
+    cursor: pointer; user-select: none; }
+  #poof { width: 100%; padding: 14px; margin-top: 8px; font-weight: 600; touch-action: none; user-select: none; }
+  #poof.held { background: var(--accent); border-color: var(--accent); color: #111; }
+  .hint { color: var(--muted); font-size: 12px; margin: 0; }
+  #sensors > .hint { margin-bottom: 14px; }
+  @media (max-width: 760px) {
+    main { flex-direction: column; }
+    #stage { flex: none; height: 45vh; }
+    aside { width: auto; border-left: 0; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>RHB LED Simulator</h1>
+  <span class="spacer"></span>
+  <span class="badge" id="fps">– fps</span>
+  <span class="badge"><span class="dot" id="conn"></span><span id="connText">connecting</span></span>
+</header>
+<main>
+  <div id="stage"><canvas id="canvas"></canvas></div>
+  <aside>
+    <section>
+      <h2>Pattern</h2>
+      <div class="patterns" id="patterns"></div>
+    </section>
+    <section>
+      <h2>Brightness</h2>
+      <div class="row"><span class="name">Master</span><span class="reading" id="brightnessText"></span></div>
+      <input type="range" id="brightness" min="0" max="1" step="0.01" value="1">
+      <p class="hint" id="capHint"></p>
+    </section>
+    <section id="sensors">
+      <h2>Sensors</h2>
+      <p class="hint">Tick <b>drive</b> to send a value twice a second, like the real sender. Untick it and the
+        value goes stale, or real OSC from the rig takes over.</p>
+    </section>
+  </aside>
+</main>
+<script>
+"use strict";
+
+// Sensor controls.  `name` matches sensors.py; values go to `address` over /osc.
+const CONTROLS = [
+  { name: "accumulator_pressure", label: "Accumulator pressure", kind: "range", min: 0, max: 80, step: 0.5,
+    value: 35, unit: "psi" },
+  { name: "water_temp", label: "Water temperature", kind: "range", min: 40, max: 200, step: 1, value: 120,
+    unit: "°F" },
+  { name: "water_heater_on", label: "Heater", kind: "toggle", value: 0 },
+  { name: "poof_button", label: "Poof button", kind: "button" },
+  { name: "poof_count", label: "Poof count", kind: "readout" },
+];
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+let layout = null, view = null, frame = null, state = null, framesThisSecond = 0;
+const addressOf = {};
+
+async function post(address, ...args) {
+  try {
+    await fetch("/osc", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, args }) });
+  } catch (e) { /* the stream's status badge already shows a dead connection */ }
+}
+
+// ---- Drawing ---------------------------------------------------------------
+
+function computeView() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(rect.width * dpr);
+  canvas.height = Math.round(rect.height * dpr);
+  const pts = layout.segments.flatMap(s => s.xy);
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const pad = 40 * dpr;
+  const scale = Math.min((canvas.width - 2 * pad) / Math.max(maxX - minX, 1),
+                         (canvas.height - 2 * pad) / Math.max(maxY - minY, 1));
+  const ox = (canvas.width - (maxX - minX) * scale) / 2;
+  const oy = (canvas.height - (maxY - minY) * scale) / 2;
+  // Pixel size from the tightest spacing anywhere in the layout.
+  let gap = Infinity;
+  for (const s of layout.segments)
+    for (let i = 1; i < s.xy.length; i++)
+      gap = Math.min(gap, Math.hypot(s.xy[i][0] - s.xy[i - 1][0], s.xy[i][1] - s.xy[i - 1][1]));
+  const r = Math.max(1.5 * dpr, Math.min(8 * dpr, (isFinite(gap) ? gap : 4) * scale * 0.42));
+  const screen = layout.segments.map(s => s.xy.map(([x, y]) =>
+    [ox + (x - minX) * scale, canvas.height - (oy + (y - minY) * scale)]));  // y up
+
+  // Static layer: unlit pixels and segment labels.
+  const base = document.createElement("canvas");
+  base.width = canvas.width; base.height = canvas.height;
+  const b = base.getContext("2d");
+  b.fillStyle = "#0b0b0d"; b.fillRect(0, 0, base.width, base.height);
+  b.fillStyle = "#1d1d22";
+  for (const seg of screen) for (const [x, y] of seg) { b.beginPath(); b.arc(x, y, r, 0, 7); b.fill(); }
+  b.font = `${12 * dpr}px system-ui, sans-serif`;
+  layout.segments.forEach((s, i) => {
+    const [x, y] = screen[i][0];
+    b.strokeStyle = "#55545c"; b.lineWidth = dpr;
+    b.beginPath(); b.arc(x, y, r * 2.6, 0, 7); b.stroke();
+    b.fillStyle = "#8a8890"; b.fillText(`${s.name} (${s.pixels})`, x + r * 3.5, y + r * 3.5 + 10 * dpr);
+  });
+  view = { screen, r, base };
+}
+
+function draw() {
+  requestAnimationFrame(draw);
+  if (!view) return;
+  ctx.globalCompositeOperation = "source-over";
+  ctx.drawImage(view.base, 0, 0);
+  if (!frame) return;
+  ctx.globalCompositeOperation = "lighter";
+  const r = view.r;
+  let i = 0;
+  for (const seg of view.screen) {
+    for (const [x, y] of seg) {
+      const R = frame[i], G = frame[i + 1], B = frame[i + 2];
+      i += 3;
+      if (R + G + B < 3) continue;
+      ctx.fillStyle = `rgba(${R},${G},${B},0.18)`;          // glow
+      ctx.beginPath(); ctx.arc(x, y, r * 2.6, 0, 7); ctx.fill();
+      ctx.fillStyle = `rgb(${R},${G},${B})`;                 // the LED
+      ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    }
+  }
+}
+
+// ---- Controls ---------------------------------------------------------------
+
+function buildPatterns() {
+  const box = document.getElementById("patterns");
+  for (const name of layout.patterns) {
+    const b = document.createElement("button");
+    b.textContent = name; b.dataset.name = name;
+    b.onclick = () => post("/led/pattern", name);
+    box.appendChild(b);
+  }
+}
+
+function buildSensors() {
+  const box = document.getElementById("sensors");
+  for (const c of CONTROLS) {
+    const el = document.createElement("div");
+    el.className = "sensor";
+    el.innerHTML = `
+      <div class="row"><span class="name">${c.label}</span>
+        <span class="reading"><span class="dot" data-dot></span><span data-reading>no data</span></span></div>
+      <div class="row"><span class="addr" data-addr></span>
+        ${c.kind === "range" || c.kind === "toggle" ? '<label class="drive"><input type="checkbox" data-drive> drive</label>' : ""}</div>`;
+    if (c.kind === "range") {
+      const input = Object.assign(document.createElement("input"),
+        { type: "range", min: c.min, max: c.max, step: c.step, value: c.value });
+      input.oninput = () => { c.value = +input.value; if (c.driven) post(addressOf[c.name], c.value); };
+      el.appendChild(input);
+    } else if (c.kind === "toggle") {
+      const b = document.createElement("button");
+      b.style.marginTop = "8px"; b.textContent = "Off";
+      b.onclick = () => {
+        c.value = c.value ? 0 : 1; b.textContent = c.value ? "On" : "Off"; b.classList.toggle("on", !!c.value);
+        if (c.driven) post(addressOf[c.name], c.value);
+      };
+      el.appendChild(b);
+    } else if (c.kind === "button") {
+      const b = Object.assign(document.createElement("button"), { id: "poof", textContent: "Hold to poof (space)" });
+      const press = down => { if (c.held === down) return; c.held = down; b.classList.toggle("held", down);
+        post(addressOf[c.name], down ? 1 : 0); };
+      b.onpointerdown = e => { b.setPointerCapture(e.pointerId); press(true); };
+      b.onpointerup = b.onpointercancel = () => press(false);
+      addEventListener("keydown", e => { if (e.code === "Space" && !e.repeat) { e.preventDefault(); press(true); } });
+      addEventListener("keyup", e => { if (e.code === "Space") { e.preventDefault(); press(false); } });
+      el.appendChild(b);
+    }
+    const drive = el.querySelector("[data-drive]");
+    if (drive) drive.onchange = () => { c.driven = drive.checked; if (c.driven) post(addressOf[c.name], c.value); };
+    c.el = el;
+    box.appendChild(el);
+  }
+}
+
+// Resend driven values like the real senders do, so they never go stale.
+setInterval(() => {
+  for (const c of CONTROLS) if (c.driven) post(addressOf[c.name], c.value);
+}, 500);
+
+function fmt(v) { return Number.isInteger(v) ? String(v) : v.toFixed(1); }
+
+function showState() {
+  for (const b of document.querySelectorAll("#patterns button"))
+    b.classList.toggle("on", b.dataset.name === state.pattern);
+  const bright = document.getElementById("brightness");
+  if (document.activeElement !== bright) bright.value = state.brightness;
+  document.getElementById("brightnessText").textContent =
+    `${Math.round(state.brightness * 100)}% × cap ${Math.round(layout.max_brightness * 100)}%`;
+  for (const c of CONTROLS) {
+    const s = state.sensors[c.name];
+    if (!s || !c.el) continue;
+    addressOf[c.name] = s.address;
+    c.el.querySelector("[data-addr]").textContent = s.address;
+    const dot = c.el.querySelector("[data-dot]");
+    dot.className = "dot " + (s.value === null ? "" : s.live ? "live" : "stale");
+    c.el.querySelector("[data-reading]").textContent = s.value === null ? "no data"
+      : `${fmt(s.value)}${c.unit ? " " + c.unit : ""} · ${s.live ? "" : "stale, "}${s.age.toFixed(1)}s ago`;
+  }
+}
+
+document.getElementById("brightness").oninput = e => post("/led/brightness", +e.target.value);
+
+// ---- Stream -----------------------------------------------------------------
+
+function connect() {
+  const es = new EventSource("/events");
+  const conn = document.getElementById("conn"), connText = document.getElementById("connText");
+  es.onopen = () => { conn.className = "dot live"; connText.textContent = "live"; };
+  es.onerror = () => { conn.className = "dot stale"; connText.textContent = "reconnecting"; };
+  es.addEventListener("frame", e => {
+    const bin = atob(e.data), out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    frame = out; framesThisSecond++;
+  });
+  es.addEventListener("state", e => { state = JSON.parse(e.data); showState(); });
+}
+
+setInterval(() => {
+  document.getElementById("fps").textContent = `${framesThisSecond} fps`;
+  framesThisSecond = 0;
+}, 1000);
+
+(async () => {
+  layout = await (await fetch("/layout")).json();
+  // Addresses come with the first state; until then fall back to sensors.py's defaults.
+  Object.assign(addressOf, { accumulator_pressure: "/pressure", water_temp: "/temperature",
+    water_heater_on: "/water_heater", poof_button: "/poof_button", poof_count: "/poof_count" });
+  document.getElementById("capHint").textContent =
+    `layout.toml caps output at ${Math.round(layout.max_brightness * 100)}%; the view shows what the LEDs get.`;
+  buildPatterns();
+  buildSensors();
+  computeView();
+  new ResizeObserver(() => computeView()).observe(document.getElementById("stage"));
+  connect();
+  draw();
+})();
+</script>
+</body>
+</html>

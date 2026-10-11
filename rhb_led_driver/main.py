@@ -1,6 +1,6 @@
 """Entry point: listen for sensors and control over OSC, render, send to the F16V5.
 
-    python -m rhb_led_driver [--dry-run]
+    python -m rhb_led_driver [--dry-run] [--sim [--sim-host H] [--sim-port P]]
 
 Run from the directory holding settings.toml (ConfigReader reads it from the
 cwd).  OSC control, besides the sensor addresses in sensors.py:
@@ -26,6 +26,7 @@ from rhb_led_driver.output import NullOutput, SacnOutput
 from rhb_led_driver.patterns import PATTERNS
 from rhb_led_driver.patterns.base import blank_frame
 from rhb_led_driver.sensors import SensorState
+from rhb_led_driver.simulator import SimOutput, start_simulator
 
 logger = logging.getLogger(__name__)
 
@@ -54,14 +55,33 @@ class Driver:
         except (TypeError, ValueError):
             logger.warning("Bad brightness %r", value)
 
+    def routes(self) -> dict:
+        """OSC address -> handler(address, *args).  Real OSC and the simulator both go through here."""
+        routes = {address: self.sensors.on_osc for address in self.sensors.addresses}
+        routes["/led/pattern"] = self.set_pattern
+        routes["/led/brightness"] = self.set_brightness
+        return routes
+
+    def handle(self, address: str, *args) -> bool:
+        handler = self.routes().get(address)
+        if handler is None:
+            return False
+        handler(address, *args)
+        return True
+
     def dispatcher(self) -> Dispatcher:
         d = Dispatcher()
-        for address in self.sensors.addresses:
-            d.map(address, self.sensors.on_osc)
-        d.map("/led/pattern", self.set_pattern)
-        d.map("/led/brightness", self.set_brightness)
+        for address, handler in self.routes().items():
+            d.map(address, handler)
         d.set_default_handler(lambda *_: None)  # the rig broadcasts plenty we don't use
         return d
+
+    def state(self) -> dict:
+        return {
+            "pattern": self.pattern.name,
+            "brightness": self.brightness,
+            "sensors": self.sensors.snapshot(),
+        }
 
     async def run(self) -> None:
         period = 1.0 / self.layout.fps
@@ -85,11 +105,14 @@ class Driver:
         self.output.send(blank_frame(self.layout), 0.0)
 
 
-async def amain(dry_run: bool) -> None:
+async def amain(args) -> None:
     cfg = get_config(REQUIRED_KEYS)
     layout = load_layout(Path(cfg.LAYOUT_FILE))
-    output = NullOutput(layout) if dry_run else SacnOutput(layout, cfg.if_exists("SACN_BIND_IP") or None)
+    output = NullOutput(layout) if args.dry_run else SacnOutput(layout, cfg.if_exists("SACN_BIND_IP") or None)
+    if args.sim:
+        output = SimOutput(layout, output)
     driver = Driver(layout, output, cfg.DEFAULT_PATTERN)
+    sim_server = await start_simulator(driver, output, args.sim_host, args.sim_port) if args.sim else None
 
     server = AsyncIOOSCUDPServer(
         (cfg.OSC_LISTEN_IP, int(cfg.OSC_LISTEN_PORT)), driver.dispatcher(), asyncio.get_running_loop()
@@ -107,6 +130,8 @@ async def amain(dry_run: bool) -> None:
         logger.info("Stopping")
     finally:
         transport.close()
+        if sim_server:
+            sim_server.close()
         driver.blackout()
         output.close()
 
@@ -114,11 +139,14 @@ async def amain(dry_run: bool) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="RHB LED driver")
     parser.add_argument("--dry-run", action="store_true", help="render frames but send nothing")
+    parser.add_argument("--sim", action="store_true", help="serve a live browser view of the LEDs")
+    parser.add_argument("--sim-host", default="127.0.0.1", help="0.0.0.0 to view from another device")
+    parser.add_argument("--sim-port", type=int, default=8080)
     args = parser.parse_args()
     configure_logging()
     level = get_config(REQUIRED_KEYS).LOG_LEVEL
     logging.getLogger().setLevel(level.upper())
-    asyncio.run(amain(args.dry_run))
+    asyncio.run(amain(args))
 
 
 if __name__ == "__main__":

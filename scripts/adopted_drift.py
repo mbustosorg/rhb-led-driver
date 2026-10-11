@@ -50,13 +50,13 @@ def main() -> int:
         local, upstream, commit, mode = entry["local"], entry["upstream"], entry["commit"], entry["mode"]
         pinned = git_show(args.lindsay, commit, upstream)
         head = git_show(args.lindsay, "HEAD", upstream)
-        ours_text = strip_header((ADOPTED / local).read_text())
+        ours_text = strip_header((ROOT / local).read_text())
 
         theirs = diff(pinned, head, f"{upstream}@{commit}", f"{upstream}@HEAD")
-        ours = diff(pinned, ours_text, f"{upstream}@{commit}", f"adopted/{local}") if mode == "verbatim" else []
+        ours = diff(pinned, ours_text, f"{upstream}@{commit}", local) if mode == "verbatim" else []
 
-        ours_label = "n/a (extract)" if mode == "extract" else ("modified" if ours else "unchanged")
-        print(f"{local:<20} ours: {ours_label:<14} upstream: {'CHANGED' if theirs else 'unchanged'}")
+        ours_label = f"n/a ({mode})" if mode != "verbatim" else ("modified" if ours else "unchanged")
+        print(f"{local:<40} ours: {ours_label:<14} upstream: {'CHANGED' if theirs else 'unchanged'}")
         if args.diff:
             sys.stdout.writelines(ours + theirs)
     return 0
