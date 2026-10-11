@@ -49,6 +49,8 @@ segments, take time from `render(now, ...)`, write the result into
 | `log_setup.py` | `lib_shared/log_setup.py` | Same log format and Pacific timestamps as the sign |
 | `pixelblaze.py` | `lib_shared/patterns/honeycomb.py` (extract) | `wave` / `triangle` / `hsv_to_rgb`, vectorized |
 | `../patterns/honeycomb.py` | `lib_shared/patterns/honeycomb.py` (port) | The honeycomb pattern on pixel coordinates |
+| `perlin.py` | `lib_shared/patterns/windfire.py` (extract) | Perlin noise and fractal turbulence, for the noise-based patterns |
+| `../patterns/coronal_mass_ejection.py` | `lib_shared/patterns/coronal_mass_ejection.py` (port) | The star-and-flares pattern, centered on the gauge |
 
 **Not taken: `effect_base.py` / `display_base.py`.**  Those model a 2-D
 HUB75 matrix (a `Bitmap` of palette indices blitted with `SetPixel`).  The

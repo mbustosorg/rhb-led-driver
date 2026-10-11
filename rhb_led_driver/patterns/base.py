@@ -16,7 +16,7 @@ Three ways to know where a pixel is, all dicts keyed by segment name:
 
 import numpy as np
 
-from rhb_led_driver.geometry import normalize
+from rhb_led_driver.geometry import normalize, uv_transform
 from rhb_led_driver.layout import Layout
 from rhb_led_driver.output import Frame
 from rhb_led_driver.sensors import SensorState
@@ -31,6 +31,9 @@ class Pattern:
         self.pos = {s.name: np.linspace(0.0, 1.0, s.pixels) for s in layout.segments}
         self.xy = {s.name: s.xy for s in layout.segments}
         self.uv = normalize(self.xy)
+        origin, span = uv_transform(self.xy)
+        # Each segment's middle in uv: an arc's true center, else its bounding box's.
+        self.center_uv = {s.name: (s.center - origin) / span for s in layout.segments}
 
     def render(self, now: float, sensors: SensorState, frame: Frame) -> None:
         """Fill `frame[segment]` in place.  `now` is seconds on the monotonic clock."""

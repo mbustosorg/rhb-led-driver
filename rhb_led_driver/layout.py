@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from rhb_led_driver.geometry import segment_points
+from rhb_led_driver.geometry import segment_center, segment_points
 
 PIXELS_PER_UNIVERSE = 170  # 510 of 512 DMX channels, RGB
 
@@ -18,6 +18,8 @@ class Segment:
     start_universe: int
     # (pixels, 2) physical x,y of each pixel; see geometry.py
     xy: np.ndarray | None = field(default=None, compare=False, repr=False)
+    # Its middle, same units: an arc's center, else the bounding box's.
+    center: np.ndarray | None = field(default=None, compare=False, repr=False)
 
     @property
     def universes(self) -> range:
@@ -43,10 +45,11 @@ def load_layout(path: Path) -> Layout:
     with open(path, "rb") as f:
         raw = tomllib.load(f)
     controller = raw["controller"]
-    segments = tuple(
-        Segment(s["name"], int(s["pixels"]), int(s["start_universe"]), segment_points(s, int(s["pixels"]), path.parent))
-        for s in raw["segment"]
-    )
+    segments = []
+    for s in raw["segment"]:
+        xy = segment_points(s, int(s["pixels"]), path.parent)
+        segments.append(Segment(s["name"], int(s["pixels"]), int(s["start_universe"]), xy, segment_center(s, xy)))
+    segments = tuple(segments)
     layout = Layout(
         host=controller["host"],
         fps=float(controller.get("fps", 40)),

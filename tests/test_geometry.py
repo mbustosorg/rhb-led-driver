@@ -34,3 +34,12 @@ def test_normalize_keeps_aspect_over_all_segments():
     uv = normalize({"a": np.array([[0.0, 0.0], [100.0, 0.0]]), "b": np.array([[50.0, 25.0]])})
     assert np.allclose(uv["a"], [[0, 0], [1, 0]])
     assert np.allclose(uv["b"], [[0.5, 0.25]])
+
+
+def test_arc_center_is_the_arc_center_not_its_bounding_box(tmp_path):
+    from rhb_led_driver.geometry import segment_center
+
+    raw = {"arc": {"center": [5, 5], "radius": 2, "start_deg": 225, "end_deg": -45}}
+    xy = segment_points(raw, 100, tmp_path)
+    assert np.allclose(segment_center(raw, xy), [5, 5])
+    assert np.allclose(np.hypot(*(xy - [5, 5]).T), 2.0)

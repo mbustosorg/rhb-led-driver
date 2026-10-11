@@ -69,6 +69,20 @@ def segment_points(raw: dict, n: int, base_dir: Path) -> np.ndarray:
     return file_points(base_dir / raw["points_file"], n)
 
 
+def segment_center(raw: dict, xy: np.ndarray) -> np.ndarray:
+    """The middle of a segment: an arc's own center, else its bounding box's."""
+    if "arc" in raw:
+        return np.asarray(raw["arc"]["center"], dtype=float)
+    return (xy.min(axis=0) + xy.max(axis=0)) / 2.0
+
+
+def uv_transform(xy_by_segment: dict[str, np.ndarray]):
+    """(origin, span) such that uv = (xy - origin) / span; see normalize()."""
+    every = np.concatenate(list(xy_by_segment.values()))
+    lo = every.min(axis=0)
+    return lo, float((every.max(axis=0) - lo).max()) or 1.0
+
+
 def normalize(xy_by_segment: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     """Map every segment into 0..1 on the car's longest axis, keeping aspect.
 
@@ -76,7 +90,5 @@ def normalize(xy_by_segment: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     canvas: the same (u, v) on the hose and the gauge is the same place in
     the pattern.  The shorter axis spans less than 0..1.
     """
-    every = np.concatenate(list(xy_by_segment.values()))
-    lo = every.min(axis=0)
-    span = float((every.max(axis=0) - lo).max()) or 1.0
+    lo, span = uv_transform(xy_by_segment)
     return {name: (xy - lo) / span for name, xy in xy_by_segment.items()}

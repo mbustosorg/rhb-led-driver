@@ -1,5 +1,6 @@
 # ADOPTED from lindsay-50 lib_shared/patterns/honeycomb.py @ c98fde6 -- edit freely.
 # Extract: only the Pixelblaze primitives, made public; the Honeycomb effect itself is not here.
+# Added: time_pb(), Pixelblaze time() in its own 65.536 s units (windfire / coronal_mass_ejection).
 # --- end adoption header ---
 """Pixelblaze primitives, vectorized with numpy.
 
@@ -18,6 +19,14 @@ PI2 = 2.0 * np.pi
 def time_saw(now, period_s):
     """Pixelblaze time(): a 0..1 sawtooth over `period_s` seconds."""
     return (now / period_s) % 1.0
+
+
+PB_TIME_UNIT = 65.536  # Pixelblaze time(i) has period i * 65.536 s (2^16 ms)
+
+
+def time_pb(now, interval):
+    """Pixelblaze time(interval) exactly, for ports that keep the original's intervals."""
+    return (now / (interval * PB_TIME_UNIT)) % 1.0
 
 
 def wave(v):
