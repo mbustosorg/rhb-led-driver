@@ -7,3 +7,4 @@ See README.md for what this is and how it fits the RHB rig.
 - The rig is statically addressed (no DHCP). WiFi listeners must have power save off.
 - Behavioral knobs live as constants at the top of each pattern file; deployment settings in `settings.toml`; physical layout in `config/layout.toml`.
 - Run tests with `.venv/bin/python -m pytest`; format with black (line length 120).
+- `scripts/setup-readonly.sh` is kept identical in rhb-sensor-monitor; change both.

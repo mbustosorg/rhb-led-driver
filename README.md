@@ -40,6 +40,42 @@ Run from the repo root (settings.toml is read from the cwd):
     .venv/bin/python -m rhb_led_driver
     .venv/bin/python -m pytest
 
+Running at boot
+---------------
+
+`config/rhb_led_driver.service` runs the driver as `pi` out of
+`/home/pi/rhb-led-driver` and restarts it 2 s after any exit, forever:
+
+    sudo cp config/rhb_led_driver.service /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now rhb_led_driver
+    journalctl -u rhb_led_driver -f        # logs
+
+Stopping the service sends a black frame before exit.
+
+Read-only SD card
+-----------------
+
+The car loses power without warning, which is what corrupts SD cards.
+`scripts/setup-readonly.sh` makes the card read-only (a RAM overlay on top
+of it) and puts the systemd journal on a USB stick, so the driver's logs
+survive a power cut:
+
+    lsblk -o NAME,TRAN,SIZE,LABEL           # find the stick, e.g. sda1
+    sudo scripts/setup-readonly.sh --device /dev/sda1 --format
+    sudo reboot
+    journalctl -u rhb_led_driver            # now includes previous boots
+
+The stick is mounted at `/data` (ext4, label `RHBDATA`) and `/var/log/journal`
+is bind-mounted from `/data/journal`.  If the stick is missing the Pi still
+boots and the lights still run; the journal just falls back to RAM.  The
+driver itself writes no files, so it needs no `--app`/`--unit`.
+
+To update code later, turn the overlay off first: `sudo raspi-config` ->
+Performance Options -> Overlay File System -> No (and No to read-only boot),
+reboot, `git pull`, turn it back on, reboot.  The same script, kept
+identical, is in `rhb-sensor-monitor`.
+
 Sensors
 -------
 

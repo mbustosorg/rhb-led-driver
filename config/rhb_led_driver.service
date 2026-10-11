@@ -1,0 +1,30 @@
+# Starts the LED driver at boot and restarts it if it dies.
+#
+#   sudo cp config/rhb_led_driver.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now rhb_led_driver
+#
+# Logs go to the journal (stderr), not a file:
+#   journalctl -u rhb_led_driver -f
+
+[Unit]
+Description=rhb-led-driver
+After=network.target
+# Retry forever; never give up after a burst of failures at boot.
+StartLimitIntervalSec=0
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/rhb-led-driver
+ExecStart=/home/pi/rhb-led-driver/.venv/bin/python -m rhb_led_driver
+# If SACN_BIND_IP names the Ethernet address and eth0 is not up yet, the
+# first start fails; the restart picks it up a couple of seconds later.
+Restart=always
+RestartSec=2
+# SIGTERM makes the driver send a black frame and exit; give it a moment.
+TimeoutStopSec=5
+# Keep frame timing steady if something else on the Pi gets busy.
+Nice=-5
+
+[Install]
+WantedBy=multi-user.target
