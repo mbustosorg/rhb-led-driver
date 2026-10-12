@@ -28,7 +28,7 @@ async def exercise():
         reader, writer = await request(port, "GET", "/layout")
         layout = json.loads((await reader.read()).split(b"\r\n\r\n", 1)[1])
         writer.close()
-        assert [s["name"] for s in layout["segments"]] == ["hose_upper", "hose_lower", "handle", "gauge"]
+        assert [s["name"] for s in layout["segments"]] == [s.name for s in LAYOUT.segments]
         assert "honeycomb" in layout["patterns"]
 
         msg = json.dumps({"address": "/pressure", "args": [42.0]}).encode()

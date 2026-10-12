@@ -1,3 +1,4 @@
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -8,8 +9,13 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_shipped_layout_loads():
-    layout = load_layout(ROOT / "config" / "layout.toml")
-    assert {s.name for s in layout.segments} == {"hose_upper", "hose_lower", "handle", "gauge"}
+    path = ROOT / "config" / "layout.toml"
+    with open(path, "rb") as f:
+        names = [s["name"] for s in tomllib.load(f)["segment"]]
+    layout = load_layout(path)
+    assert [s.name for s in layout.segments] == names
+    for s in layout.segments:
+        assert s.xy.shape == (s.pixels, 2)
 
 
 def test_universe_fits_in_sacn():

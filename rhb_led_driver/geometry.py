@@ -10,7 +10,9 @@ whole car, so patterns that work in space line up across segments:
     arc = { center = [x, y], radius = r, start_deg = a, end_deg = b }
                                      circular arc; 0 deg is +x, angles grow
                                      counterclockwise (y up), pixels run from
-                                     start_deg to end_deg
+                                     start_deg to end_deg.  A full turn (360
+                                     apart) spaces pixels evenly around the
+                                     circle, with no doubled pixel at the seam.
     points_file = "handle.csv"       one "x,y" row per pixel, in pixel order;
                                      relative to layout.toml's directory.  For
                                      anything measured or exported from a
@@ -38,7 +40,8 @@ def path_points(points, n: int) -> np.ndarray:
 
 
 def arc_points(center, radius: float, start_deg: float, end_deg: float, n: int) -> np.ndarray:
-    a = np.radians(np.linspace(start_deg, end_deg, n))
+    full_turn = abs(end_deg - start_deg) >= 360.0
+    a = np.radians(np.linspace(start_deg, end_deg, n, endpoint=not full_turn))
     cx, cy = center
     return np.column_stack([cx + radius * np.cos(a), cy + radius * np.sin(a)])
 

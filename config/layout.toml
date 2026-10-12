@@ -1,19 +1,20 @@
 # Physical LED layout and the F16V5 it is wired to.
 #
-# Each segment is one run of pixels on the car.  It starts on its own sACN
-# universe so the F16V5 port setup is easy to read: in the controller's
-# String Ports page, set each port's start channel to universe `start_universe`
-# channel 1 and its pixel count to `pixels`.  One universe carries 170 RGB
-# pixels, so a 300-pixel segment spans 2 universes.
+# Each segment is one run of pixels: one strip on one controller port.  It
+# starts on its own sACN universe so the F16V5 port setup is easy to read: in
+# the controller's String Ports page, set each port's start channel to
+# universe `start_universe` channel 1 and its pixel count to `pixels`.  One
+# universe carries 170 RGB pixels.
 #
-# Each segment also gives its shape -- the x,y of every pixel -- with one of
-# `path`, `arc` or `points_file` (see rhb_led_driver/geometry.py).  All
-# segments share one frame so spatial patterns line up across them.  Here:
-# inches, looking at the car from the driver's side, x from the front bumper
-# toward the back, y up from the ground.  The gauge's face is turned into
-# that plane.  Check a layout with scripts/preview_layout.py.
+# Each segment also gives its shape -- the x,y of every pixel, in wiring
+# order -- with one of `path`, `arc` or `points_file` (see
+# rhb_led_driver/geometry.py).  All segments share one frame: inches, looking
+# at the car from the driver's side, x from the front toward the back, y up
+# from the ground.  Check a layout with scripts/preview_layout.py.
 #
-# PIXEL COUNTS, ADDRESSES AND SHAPES ARE PLACEHOLDERS -- measure the real runs.
+# Traced from a photo of the car, scaled from the 4' gauge.  The controller
+# and Pi sit behind the gauge, so every run starts there.  Pixel counts are
+# from the run lengths at 18 pixels/m; replace them with the real counts.
 
 [controller]
 host = "192.168.1.20"   # F16V5 address (static; the rig has no DHCP)
@@ -23,27 +24,43 @@ fps = 40
 max_brightness = 0.6
 
 [[segment]]
-name = "hose_upper"
-pixels = 300
+name = "hose_upper"  # top edge of the hose, gauge end out to the nozzle
+pixels = 232
 start_universe = 1
-path = [[230, 80], [230, 110], [175, 150], [0, 150]]
+path = [[425.6, 150.4], [424.0, 179.2], [400.0, 224.0], [364.8, 254.4], [329.6, 260.8], [41.6, 258.6], [23.0, 286.4], [6.4, 269.4]]
 
 [[segment]]
-name = "hose_lower"
-pixels = 300
+name = "hose_lower"  # bottom edge of the hose, gauge end out to the nozzle
+pixels = 215
 start_universe = 3
-path = [[210, 80], [210, 100], [170, 130], [0, 130]]
+path = [[409.6, 150.4], [403.2, 192.0], [380.8, 225.6], [342.4, 243.2], [36.8, 243.8], [6.4, 269.4]]
 
 [[segment]]
-name = "handle"
-pixels = 60
+name = "gauge"  # 4' dial, a full circle starting at the top, running clockwise
+pixels = 69
 start_universe = 5
-path = [[220, 0], [220, 60]]
+arc = { center = [419.2, 126.4], radius = 24.0, start_deg = 90, end_deg = -270 }
 
 [[segment]]
-name = "gauge"          # 4' pressure gauge off the back
-pixels = 144
+name = "connector_upper"  # short pipe from the gauge to the tank, top edge
+pixels = 10
 start_universe = 6
-# Rim of a 4' dial, sweeping clockwise from lower left over the top to lower
-# right, the way a gauge needle travels.
-arc = { center = [220, 60], radius = 22, start_deg = 270, end_deg = -90 }
+path = [[395.2, 136.0], [372.8, 136.0]]
+
+[[segment]]
+name = "connector_lower"  # short pipe from the gauge to the tank, bottom edge
+pixels = 10
+start_universe = 7
+path = [[395.2, 123.2], [372.8, 123.2]]
+
+[[segment]]
+name = "handle_left"  # front prong, one loop: down the outside, round the tip, up the inside
+pixels = 71
+start_universe = 8
+path = [[428.0, 104.8], [418.4, 74.3], [407.2, 32.6], [412.0, 31.4], [423.2, 72.9], [432.8, 103.2]]
+
+[[segment]]
+name = "handle_right"  # back prong, one loop: down the outside, round the tip, up the inside
+pixels = 69
+start_universe = 9
+path = [[443.6, 108.6], [463.1, 81.0], [471.2, 42.1], [466.4, 41.1], [458.5, 79.0], [439.6, 105.8]]

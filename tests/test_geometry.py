@@ -43,3 +43,8 @@ def test_arc_center_is_the_arc_center_not_its_bounding_box(tmp_path):
     xy = segment_points(raw, 100, tmp_path)
     assert np.allclose(segment_center(raw, xy), [5, 5])
     assert np.allclose(np.hypot(*(xy - [5, 5]).T), 2.0)
+
+
+def test_full_circle_has_no_doubled_pixel_at_the_seam():
+    xy = arc_points([0, 0], 1.0, 90, -270, 4)
+    assert np.allclose(xy, [[0, 1], [1, 0], [0, -1], [-1, 0]])
