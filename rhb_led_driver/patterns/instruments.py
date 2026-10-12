@@ -50,10 +50,19 @@ class Instruments(Pattern):
         frame["handle"][:] = color * (0.15 + 0.85 * wave(now * breaths_per_s))
 
         # Hose
-        hose = frame["hose"]
+        hose = frame["hose_upper"]
         hose[:] = 0.03
         since = sensors.since_rise("poof_button")
         if since is not None and since < PULSE_SECONDS:
             head = since / PULSE_SECONDS
-            dist = np.abs(self.pos["hose"] - head)
+            dist = np.abs(self.pos["hose_upper"] - head)
+            hose += np.clip(1.0 - dist / PULSE_WIDTH, 0.0, 1.0)[:, None] * np.array([1.0, 0.5, 0.0])
+
+        # Hose
+        hose = frame["hose_lower"]
+        hose[:] = 0.03
+        since = sensors.since_rise("poof_button")
+        if since is not None and since < PULSE_SECONDS:
+            head = since / PULSE_SECONDS
+            dist = np.abs(self.pos["hose_lower"] - head)
             hose += np.clip(1.0 - dist / PULSE_WIDTH, 0.0, 1.0)[:, None] * np.array([1.0, 0.5, 0.0])

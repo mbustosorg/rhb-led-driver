@@ -45,3 +45,9 @@ local = "rhb_led_driver/patterns/coronal_mass_ejection.py"
 upstream = "lib_shared/patterns/coronal_mass_ejection.py"
 commit = "c98fde6"
 mode = "port"
+
+[[file]]
+local = "rhb_led_driver/patterns/windfire.py"
+upstream = "lib_shared/patterns/windfire.py"
+commit = "c98fde6"
+mode = "port"

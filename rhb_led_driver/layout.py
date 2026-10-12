@@ -8,7 +8,7 @@ import numpy as np
 
 from rhb_led_driver.geometry import segment_center, segment_points
 
-PIXELS_PER_UNIVERSE = 170  # 510 of 512 DMX channels, RGB
+PIXELS_PER_UNIVERSE = 170  # 510 of 512 DMX channels, RGB; a universe can never hold more
 
 
 @dataclass(frozen=True)

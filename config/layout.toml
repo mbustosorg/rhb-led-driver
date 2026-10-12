@@ -23,21 +23,27 @@ fps = 40
 max_brightness = 0.6
 
 [[segment]]
-name = "hose"           # overhead hose
+name = "hose_upper"
 pixels = 300
 start_universe = 1
-path = [[20, 96], [90, 102], [160, 96]]
+path = [[230, 80], [230, 110], [175, 150], [0, 150]]
+
+[[segment]]
+name = "hose_lower"
+pixels = 300
+start_universe = 3
+path = [[210, 80], [210, 100], [170, 130], [0, 130]]
 
 [[segment]]
 name = "handle"
 pixels = 60
-start_universe = 3
-path = [[150, 40], [150, 70]]
+start_universe = 5
+path = [[220, 0], [220, 60]]
 
 [[segment]]
 name = "gauge"          # 4' pressure gauge off the back
 pixels = 144
-start_universe = 4
+start_universe = 6
 # Rim of a 4' dial, sweeping clockwise from lower left over the top to lower
 # right, the way a gauge needle travels.
-arc = { center = [200, 60], radius = 22, start_deg = 225, end_deg = -45 }
+arc = { center = [220, 60], radius = 22, start_deg = 270, end_deg = -90 }

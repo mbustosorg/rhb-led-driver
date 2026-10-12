@@ -51,6 +51,7 @@ segments, take time from `render(now, ...)`, write the result into
 | `../patterns/honeycomb.py` | `lib_shared/patterns/honeycomb.py` (port) | The honeycomb pattern on pixel coordinates |
 | `perlin.py` | `lib_shared/patterns/windfire.py` (extract) | Perlin noise and fractal turbulence, for the noise-based patterns |
 | `../patterns/coronal_mass_ejection.py` | `lib_shared/patterns/coronal_mass_ejection.py` (port) | The star-and-flares pattern, centered on the gauge |
+| `../patterns/windfire.py` | `lib_shared/patterns/windfire.py` (port) | Wind-bent Perlin fire, burning up the car's bounding box |
 
 **Not taken: `effect_base.py` / `display_base.py`.**  Those model a 2-D
 HUB75 matrix (a `Bitmap` of palette indices blitted with `SetPixel`).  The
