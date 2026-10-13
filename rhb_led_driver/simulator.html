@@ -112,9 +112,10 @@ const CONTROLS = [
   { name: "poof_count", label: "Poof count", kind: "readout" },
 ];
 
-// Diffused view: each pixel lights the strip halfway to its neighbors, this wide,
-// then softened.  Neighbors farther apart than JOIN x the run's usual spacing
-// (a serpentine row turn, a jump in the wiring) are not joined.
+// Diffused view: the strip's color blends smoothly from each pixel to the next,
+// as light does behind a diffuser, then is softened (a grid also across its
+// rows, so they merge).  Neighbors farther apart than JOIN x the run's usual
+// spacing (a serpentine row turn, a jump in the wiring) are not joined.
 // A grid (the gauge's matrix) widens its bands to its row spacing so the rows merge.
 const DIFFUSER_WIDTH = 0.66;  // layout units (inches): about a strip under diffuser
 const JOIN = 1.6;
@@ -159,18 +160,23 @@ function computeView() {
 
   // Each pixel's stretch of strip: from halfway to the previous pixel, through
   // it, to halfway to the next -- or just itself where there is no neighbor.
+  const links = [];  // per segment: is pixel i joined to pixel i + 1
   const pieces = screen.map(seg => {
     const d = seg.slice(1).map((p, i) => Math.hypot(p[0] - seg[i][0], p[1] - seg[i][1]));
     const usual = d.length ? [...d].sort((a, b) => a - b)[d.length >> 1] : 0;
     const joined = d.map(v => v <= usual * JOIN);
+    links.push(joined);
     const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     return seg.map((p, i) => [
       i > 0 && joined[i - 1] ? mid(seg[i - 1], p) : null, p, i < d.length && joined[i] ? mid(p, seg[i + 1]) : null]);
   });
-  const widths = layout.segments.map(s => Math.max(2 * dpr, Math.max(DIFFUSER_WIDTH, rowSpacing(s.xy)) * scale));
+  const rows = layout.segments.map(s => rowSpacing(s.xy));
+  const widths = rows.map(row => Math.max(2 * dpr, Math.max(DIFFUSER_WIDTH, row) * scale));
+  const grid = rows.map(row => row > 0);
   const width = Math.min(...widths);  // blur radius: the thinnest strip stays crisp
-  const glow = document.createElement("canvas");
-  glow.width = canvas.width; glow.height = canvas.height;
+  const gridWidth = Math.max(0, ...widths.filter((w, k) => grid[k]));
+  const layer = () => Object.assign(document.createElement("canvas"), { width: canvas.width, height: canvas.height });
+  const glow = layer(), gridGlow = layer();
 
   // Static layer: unlit pixels and segment labels.
   const base = document.createElement("canvas");
@@ -187,7 +193,7 @@ function computeView() {
     b.beginPath(); b.arc(x, y, r * 2.6, 0, 7); b.stroke();
     b.fillStyle = "#8a8890"; b.fillText(`${s.name} (${s.pixels})`, x + r * 3.5, y + r * 3.5 + 10 * dpr);
   });
-  view = { screen, r, base, pieces, width, widths, glow };
+  view = { screen, r, base, pieces, links, width, widths, grid, gridWidth, glow, gridGlow };
 }
 
 // Spacing to the next row over if a run is a 2-D grid, else 0.  A strip's
@@ -217,28 +223,39 @@ function strokePiece(c, [before, [x, y], after], width) {
   c.stroke();
 }
 
-// Lit strip, painted crisp offscreen, then laid down softened with a wider halo.
+// Lit strip, painted offscreen with each run's color blending pixel to pixel,
+// then laid down softened with a wider halo.  Grids go on their own layer,
+// softened by their row spacing so the rows merge.
 function drawDiffused() {
-  const g = view.glow.getContext("2d");
-  g.globalCompositeOperation = "source-over";
-  g.clearRect(0, 0, view.glow.width, view.glow.height);
-  g.globalCompositeOperation = "lighter";
+  const clear = c => { const g = c.getContext("2d"); g.clearRect(0, 0, c.width, c.height); return g; };
+  const strips = clear(view.glow), grids = clear(view.gridGlow);
   let i = 0;
-  view.pieces.forEach((seg, k) => {
-    for (const piece of seg) {
-      const R = frame[i], G = frame[i + 1], B = frame[i + 2];
-      i += 3;
-      if (R + G + B < 3) continue;
-      g.fillStyle = g.strokeStyle = `rgb(${R},${G},${B})`;
-      strokePiece(g, piece, view.widths[k]);
+  view.screen.forEach((seg, k) => {
+    const g = view.grid[k] ? grids : strips, joined = view.links[k], n = seg.length, base = i;
+    i += n * 3;
+    const color = j => `rgb(${frame[base + 3 * j]},${frame[base + 3 * j + 1]},${frame[base + 3 * j + 2]})`;
+    const dark = j => frame[base + 3 * j] + frame[base + 3 * j + 1] + frame[base + 3 * j + 2] < 3;
+    g.lineWidth = view.widths[k]; g.lineCap = "round";
+    for (let j = 0; j < n; j++) {
+      const linked = j < n - 1 && joined[j];
+      if (linked && !(dark(j) && dark(j + 1))) {
+        const [x0, y0] = seg[j], [x1, y1] = seg[j + 1];
+        const grad = g.createLinearGradient(x0, y0, x1, y1);
+        grad.addColorStop(0, color(j)); grad.addColorStop(1, color(j + 1));
+        g.strokeStyle = grad;
+        g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+      } else if (!linked && !(j > 0 && joined[j - 1]) && !dark(j)) {
+        g.fillStyle = color(j);  // a pixel on its own
+        g.beginPath(); g.arc(seg[j][0], seg[j][1], view.widths[k] / 2, 0, 7); g.fill();
+      }
     }
   });
-  ctx.filter = `blur(${view.width * 1.5}px)`;
-  ctx.globalAlpha = 0.5;
-  ctx.drawImage(view.glow, 0, 0);
-  ctx.filter = `blur(${view.width * 0.25}px)`;
-  ctx.globalAlpha = 1;
-  ctx.drawImage(view.glow, 0, 0);
+  const lay = (c, soft) => {
+    ctx.filter = `blur(${view.width * 1.5}px)`; ctx.globalAlpha = 0.5; ctx.drawImage(c, 0, 0);
+    ctx.filter = `blur(${soft}px)`; ctx.globalAlpha = 1; ctx.drawImage(c, 0, 0);
+  };
+  lay(view.glow, view.width * 0.35);
+  if (view.gridWidth) lay(view.gridGlow, view.gridWidth * 0.4);
   ctx.filter = "none";
 }
 
