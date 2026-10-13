@@ -33,7 +33,7 @@ from rhb_led_driver.adopted.pixelblaze import hsv_to_rgb, time_pb
 from rhb_led_driver.patterns.base import Pattern
 
 # Behavioral knobs: the original's UI controls, plus where the star sits.
-CENTER = "gauge"  # segment the star is centered on; None = the middle of the whole car
+CENTER = "gauge_ring_outer"  # segment the star is centered on; None = the middle of the whole car
 RIM = 0.35  # radius CENTER's farthest pixel lands at, in the sign's units (its panel was -0.5..0.5)
 TF = 1.0  # animation speed: <1 slower, >1 faster
 DENSITY = 6  # flares around the ring

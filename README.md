@@ -105,10 +105,12 @@ shared frame for the whole car (inches, suggested), with exactly one of:
 
     path = [[20, 96], [90, 102], [160, 96]]     # polyline, pixels evenly spaced
     arc = { center = [200, 60], radius = 22, start_deg = 225, end_deg = -45 }
+    disc = { center = [200, 60], radius = 20, pitch = 0.656, rows = [0, 15] }  # matrix rows in a circle
     points_file = "handle.csv"                  # one x,y row per pixel, measured
 
 Pixels run in wiring order: the first pixel sits on the first path point, the
-arc's `start_deg`, or the CSV's first row.  Patterns get three views of each
+arc's `start_deg`, the disc's top-left row end (rows then serpentine), or the
+CSV's first row.  Patterns get three views of each
 segment (`patterns/base.py`): `pos` (0..1 along the run), `xy` (inches) and
 `uv` (normalized over the whole car, Pixelblaze style), so a 2-D pattern
 paints one picture across the hose, handle and gauge together.

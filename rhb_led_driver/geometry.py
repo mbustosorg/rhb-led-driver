@@ -1,6 +1,6 @@
 """Where each pixel physically is: x,y for every pixel of a segment.
 
-A segment's shape is given in layout.toml in one of three ways, in whatever
+A segment's shape is given in layout.toml in one of four ways, in whatever
 units you measure in (inches suggested) and in one shared frame for the
 whole car, so patterns that work in space line up across segments:
 
@@ -13,6 +13,13 @@ whole car, so patterns that work in space line up across segments:
                                      start_deg to end_deg.  A full turn (360
                                      apart) spaces pixels evenly around the
                                      circle, with no doubled pixel at the seam.
+    disc = { center = [x, y], radius = r, pitch = p, rows = [a, b] }
+                                     a matrix of strip rows, p apart both ways,
+                                     clipped to a circle: rows a..b-1 of it,
+                                     counted from the top.  Rows serpentine:
+                                     even rows run -x to +x, odd rows back.
+                                     Split one disc over several ports by
+                                     giving each segment its own band of rows.
     points_file = "handle.csv"       one "x,y" row per pixel, in pixel order;
                                      relative to layout.toml's directory.  For
                                      anything measured or exported from a
@@ -24,7 +31,7 @@ from pathlib import Path
 
 import numpy as np
 
-SHAPE_KEYS = ("path", "arc", "points_file")
+SHAPE_KEYS = ("path", "arc", "disc", "points_file")
 
 
 def path_points(points, n: int) -> np.ndarray:
@@ -44,6 +51,27 @@ def arc_points(center, radius: float, start_deg: float, end_deg: float, n: int) 
     a = np.radians(np.linspace(start_deg, end_deg, n, endpoint=not full_turn))
     cx, cy = center
     return np.column_stack([cx + radius * np.cos(a), cy + radius * np.sin(a)])
+
+
+def disc_rows(radius: float, pitch: float) -> list[tuple[np.ndarray, float]]:
+    """(x offsets in wiring order, y) for each row of a disc matrix, top row first."""
+    k = int(radius // pitch)
+    rows = []
+    for i, y in enumerate(np.arange(k, -k - 1, -1) * pitch):
+        cols = np.arange(-k, k + 1) * pitch
+        cols = cols[cols**2 + y**2 <= radius**2 + 1e-9]
+        rows.append((cols if i % 2 == 0 else cols[::-1], y))
+    return rows
+
+
+def disc_points(center, radius: float, pitch: float, rows, n: int) -> np.ndarray:
+    first, end = rows
+    band = disc_rows(radius, pitch)[first:end]
+    cx, cy = center
+    pts = np.concatenate([np.column_stack([cx + xs, np.full(len(xs), cy + y)]) for xs, y in band])
+    if len(pts) != n:
+        raise ValueError(f"disc rows {first}..{end - 1} hold {len(pts)} pixels, segment has {n}")
+    return pts
 
 
 def file_points(path: Path, n: int) -> np.ndarray:
@@ -69,13 +97,17 @@ def segment_points(raw: dict, n: int, base_dir: Path) -> np.ndarray:
     if "arc" in raw:
         arc = raw["arc"]
         return arc_points(arc["center"], float(arc["radius"]), float(arc["start_deg"]), float(arc["end_deg"]), n)
+    if "disc" in raw:
+        d = raw["disc"]
+        return disc_points(d["center"], float(d["radius"]), float(d["pitch"]), d["rows"], n)
     return file_points(base_dir / raw["points_file"], n)
 
 
 def segment_center(raw: dict, xy: np.ndarray) -> np.ndarray:
-    """The middle of a segment: an arc's own center, else its bounding box's."""
-    if "arc" in raw:
-        return np.asarray(raw["arc"]["center"], dtype=float)
+    """The middle of a segment: an arc's or disc's own center, else its bounding box's."""
+    for key in ("arc", "disc"):
+        if key in raw:
+            return np.asarray(raw[key]["center"], dtype=float)
     return (xy.min(axis=0) + xy.max(axis=0)) / 2.0
 
 

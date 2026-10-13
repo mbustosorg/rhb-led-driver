@@ -2,8 +2,9 @@
 
 Segments are found by name, so new runs join in without code changes:
 
-gauge     fills with accumulator pressure, in wiring order; color runs from
-          blue at a cold bath to red at a hot one
+gauge_ring*    fill with accumulator pressure, in wiring order; color runs
+               from blue at a cold bath to red at a hot one
+gauge_matrix*  fills from the bottom with the same pressure, dimmer
 handle*   breathe in the bath color; faster while the heater is on
 hose*     a bright pulse runs from the gauge end out to the nozzle whenever
           the poof button is pressed
@@ -27,10 +28,20 @@ PULSE_WIDTH = 0.08  # fraction of the hose lit by the pulse
 HUE_COLD, HUE_HOT = 0.66, 0.0  # blue, red
 PULSE_COLOR = np.array([1.0, 0.5, 0.0])
 CONNECTOR_LEVEL = 0.3
+MATRIX_LEVEL = 0.25
 
 
 class Instruments(Pattern):
     name = "instruments"
+
+    def __init__(self, layout):
+        super().__init__(layout)
+        # 0..1 height of each matrix pixel, bottom to top across all the matrix's bands.
+        matrix = [n for n in self.uv if n.startswith("gauge_matrix")]
+        if matrix:
+            v = np.concatenate([self.uv[n][:, 1] for n in matrix])
+            lo, hi = v.min(), v.max()
+            self._height = {n: (self.uv[n][:, 1] - lo) / ((hi - lo) or 1.0) for n in matrix}
 
     def render(self, now, sensors, frame):
         temp = sensors.get("water_temp")
@@ -48,12 +59,16 @@ class Instruments(Pattern):
 
         for name, seg in frame.items():
             pos = self.pos[name]
-            if name == "gauge":
+            if name.startswith("gauge_ring"):
                 seg[:] = 0.0
                 if psi is None:
                     seg[:: max(1, len(seg) // 8)] = 0.2  # dim tick marks: no reading
                 else:
                     seg[pos <= np.clip(psi / PRESSURE_FULL_PSI, 0.0, 1.0)] = color
+            elif name.startswith("gauge_matrix"):
+                seg[:] = 0.0
+                if psi is not None:
+                    seg[self._height[name] <= np.clip(psi / PRESSURE_FULL_PSI, 0.0, 1.0)] = color * MATRIX_LEVEL
             elif name.startswith("handle"):
                 seg[:] = color * breath
             elif name.startswith("hose"):
