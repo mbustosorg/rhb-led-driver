@@ -39,7 +39,7 @@ def test_first_frame_is_steady_gold():
     pattern = Eiffel(LAYOUT, rng=np.random.default_rng(1))
     frame = blank_frame(LAYOUT)
     pattern.render(5.0, SensorState(), frame)
-    rgb = np.concatenate(list(frame.values()))
+    rgb = np.concatenate([v for k, v in frame.items() if not k.startswith("gauge_ring")])  # not the beacon
     assert (rgb[:, 0] > rgb[:, 1]).all() and (rgb[:, 1] > rgb[:, 2]).all()  # gold, no flashes yet
 
 
@@ -85,7 +85,8 @@ def test_beacon_searches_then_returns_to_its_sweep_without_jumping():
     after = headings[ends[0] + 80 : ends[0] + 160]
     assert np.diff(after).mean() * 40 == pytest.approx(-2 * np.pi / ROTATION_SECONDS, rel=0.1)
     ring = frame["gauge_ring_outer"]
-    assert (ring.min(axis=1) > 0.9).sum() > 5  # a white beam on the ring
+    beam = (ring[:, 2] > 0.9) & (ring[:, 2] > ring[:, 0])
+    assert beam.sum() > 5  # a blue-white beam on the ring
 
 
 def test_no_rings_no_beacon():
