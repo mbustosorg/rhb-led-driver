@@ -1,0 +1,17 @@
+# Public simulator on Fly.io (see Dockerfile).  One machine only: viewers
+# share its pattern and sensor controls, and a second machine would split
+# them into two different worlds.  Deploy with: fly deploy --ha=false
+app = "rhb-led-sim"
+primary_region = "sjc"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Sleeps with no viewers, wakes on the next visit (a few seconds).
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

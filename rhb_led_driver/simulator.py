@@ -10,9 +10,11 @@ routes as real OSC, so sliders, TouchOSC and the car's sensors can all
 drive it at once.
 
     GET  /         the page (simulator.html)
-    GET  /layout   segments with pixel x,y, and the pattern names
+    GET  /layout   segments with pixel x,y, the pattern names, and how long
+                   the page may sit idle before it stops streaming
     GET  /events   Server-Sent Events: "frame" (base64 RGB, every segment in
-                   layout order) at the frame rate, "state" 4x a second
+                   layout order) at the frame rate, or at most `fps` if
+                   given (to save bandwidth when hosted), "state" 4x a second
     POST /osc      {"address": "/pressure", "args": [42.0]}
 """
 
@@ -51,7 +53,7 @@ class SimOutput:
         self._inner.close()
 
 
-def layout_json(layout) -> dict:
+def layout_json(layout, idle_minutes: float | None = None) -> dict:
     return {
         "segments": [
             {"name": s.name, "pixels": s.pixels, "xy": [[round(x, 2), round(y, 2)] for x, y in s.xy]}
@@ -60,6 +62,7 @@ def layout_json(layout) -> dict:
         "patterns": sorted(PATTERNS),
         "fps": layout.fps,
         "max_brightness": layout.max_brightness,
+        "idle_minutes": idle_minutes,
     }
 
 
@@ -71,22 +74,27 @@ def _response(status: str, body: bytes = b"", content_type: str = "text/plain") 
     return head.encode() + body
 
 
-async def start_simulator(driver, sim: SimOutput, host: str, port: int) -> asyncio.Server:
+async def start_simulator(
+    driver, sim: SimOutput, host: str, port: int, fps: float | None = None, idle_minutes: float | None = None
+) -> asyncio.Server:
     async def stream(writer: asyncio.StreamWriter) -> None:
         writer.write(
             b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n"
             b"Cache-Control: no-store\r\nConnection: keep-alive\r\n\r\n"
         )
-        last_seq, next_state = -1, 0.0
+        # Poll at twice the render rate so a frame goes out soon after it is
+        # drawn, but send no more often than the stream rate.
+        gap = 1.0 / min(fps or driver.layout.fps, driver.layout.fps)
+        last_seq, last_sent, next_state = -1, 0.0, 0.0
         while True:
-            if sim.seq != last_seq:
-                last_seq = sim.seq
+            if sim.seq != last_seq and time.monotonic() - last_sent >= gap * 0.9:
+                last_seq, last_sent = sim.seq, time.monotonic()
                 writer.write(b"event: frame\ndata: " + base64.b64encode(sim.latest) + b"\n\n")
             if time.monotonic() >= next_state:
                 next_state = time.monotonic() + STATE_PERIOD
                 writer.write(b"event: state\ndata: " + json.dumps(driver.state()).encode() + b"\n\n")
             await writer.drain()  # a slow client just skips frames
-            await asyncio.sleep(1.0 / driver.layout.fps)
+            await asyncio.sleep(0.5 / driver.layout.fps)
 
     async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
@@ -105,7 +113,11 @@ async def start_simulator(driver, sim: SimOutput, host: str, port: int) -> async
             if method == "GET" and path == "/":
                 writer.write(_response("200 OK", PAGE.read_bytes(), "text/html; charset=utf-8"))
             elif method == "GET" and path == "/layout":
-                writer.write(_response("200 OK", json.dumps(layout_json(driver.layout)).encode(), "application/json"))
+                writer.write(
+                    _response(
+                        "200 OK", json.dumps(layout_json(driver.layout, idle_minutes)).encode(), "application/json"
+                    )
+                )
             elif method == "GET" and path == "/events":
                 await stream(writer)
             elif method == "POST" and path == "/osc":

@@ -29,6 +29,9 @@
   .dot.live { background: var(--live); } .dot.stale { background: var(--stale); }
   main { flex: 1; display: flex; min-height: 0; }
   #stage { flex: 1; position: relative; min-width: 0; min-height: 300px; }
+  #paused { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center;
+    justify-content: center; gap: 12px; background: rgba(11, 11, 13, .72); text-align: center; padding: 16px; }
+  #paused.on { display: flex; }
   canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
   aside { width: 320px; flex: none; overflow-y: auto; background: var(--panel);
     border-left: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; gap: 20px; }
@@ -69,11 +72,18 @@
   <span class="badge"><span class="dot" id="conn"></span><span id="connText">connecting</span></span>
 </header>
 <main>
-  <div id="stage"><canvas id="canvas"></canvas></div>
+  <div id="stage"><canvas id="canvas"></canvas>
+    <div id="paused"><p class="hint">Paused while idle, to save bandwidth.</p><button id="resume">Resume</button></div>
+  </div>
   <aside>
     <section>
       <h2>Pattern</h2>
       <div class="patterns" id="patterns"></div>
+    </section>
+    <section>
+      <h2>View</h2>
+      <label class="drive"><input type="checkbox" id="diffuse" checked> diffused, as behind the diffuser</label>
+      <p class="hint">Untick to see each LED, for checking wiring.</p>
     </section>
     <section>
       <h2>Brightness</h2>
@@ -102,9 +112,18 @@ const CONTROLS = [
   { name: "poof_count", label: "Poof count", kind: "readout" },
 ];
 
+// Diffused view: each pixel lights the strip halfway to its neighbors, this wide,
+// then softened.  Neighbors farther apart than JOIN x the run's usual spacing
+// (a serpentine row turn, a jump in the wiring) are not joined.
+// A grid (the gauge's matrix) widens its bands to its row spacing so the rows merge.
+const DIFFUSER_WIDTH = 0.66;  // layout units (inches): about a strip under diffuser
+const JOIN = 1.6;
+
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 let layout = null, view = null, frame = null, state = null, framesThisSecond = 0;
+let diffuse = true;
+try { diffuse = localStorage.getItem("diffuse") !== "0"; } catch (e) { /* default */ }
 const addressOf = {};
 
 async function post(address, ...args) {
@@ -138,13 +157,29 @@ function computeView() {
   const screen = layout.segments.map(s => s.xy.map(([x, y]) =>
     [ox + (x - minX) * scale, canvas.height - (oy + (y - minY) * scale)]));  // y up
 
+  // Each pixel's stretch of strip: from halfway to the previous pixel, through
+  // it, to halfway to the next -- or just itself where there is no neighbor.
+  const pieces = screen.map(seg => {
+    const d = seg.slice(1).map((p, i) => Math.hypot(p[0] - seg[i][0], p[1] - seg[i][1]));
+    const usual = d.length ? [...d].sort((a, b) => a - b)[d.length >> 1] : 0;
+    const joined = d.map(v => v <= usual * JOIN);
+    const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    return seg.map((p, i) => [
+      i > 0 && joined[i - 1] ? mid(seg[i - 1], p) : null, p, i < d.length && joined[i] ? mid(p, seg[i + 1]) : null]);
+  });
+  const widths = layout.segments.map(s => Math.max(2 * dpr, Math.max(DIFFUSER_WIDTH, rowSpacing(s.xy)) * scale));
+  const width = Math.min(...widths);  // blur radius: the thinnest strip stays crisp
+  const glow = document.createElement("canvas");
+  glow.width = canvas.width; glow.height = canvas.height;
+
   // Static layer: unlit pixels and segment labels.
   const base = document.createElement("canvas");
   base.width = canvas.width; base.height = canvas.height;
   const b = base.getContext("2d");
   b.fillStyle = "#0b0b0d"; b.fillRect(0, 0, base.width, base.height);
-  b.fillStyle = "#1d1d22";
-  for (const seg of screen) for (const [x, y] of seg) { b.beginPath(); b.arc(x, y, r, 0, 7); b.fill(); }
+  b.fillStyle = b.strokeStyle = "#1d1d22";
+  if (diffuse) pieces.forEach((seg, i) => { for (const piece of seg) strokePiece(b, piece, widths[i]); });
+  else for (const seg of screen) for (const [x, y] of seg) { b.beginPath(); b.arc(x, y, r, 0, 7); b.fill(); }
   b.font = `${12 * dpr}px system-ui, sans-serif`;
   layout.segments.forEach((s, i) => {
     const [x, y] = screen[i][0];
@@ -152,7 +187,59 @@ function computeView() {
     b.beginPath(); b.arc(x, y, r * 2.6, 0, 7); b.stroke();
     b.fillStyle = "#8a8890"; b.fillText(`${s.name} (${s.pixels})`, x + r * 3.5, y + r * 3.5 + 10 * dpr);
   });
-  view = { screen, r, base };
+  view = { screen, r, base, pieces, width, widths, glow };
+}
+
+// Spacing to the next row over if a run is a 2-D grid, else 0.  A strip's
+// nearest pixels off its own wiring neighbors are far away; a grid's are one
+// row over, about as close as its pixels along a row.
+function rowSpacing(xy) {
+  if (xy.length < 9) return 0;
+  const along = [], across = [];
+  for (let i = 0; i < xy.length; i++) {
+    if (i) along.push(Math.hypot(xy[i][0] - xy[i - 1][0], xy[i][1] - xy[i - 1][1]));
+    let near = Infinity;
+    for (let j = 0; j < xy.length; j++)
+      if (Math.abs(i - j) > 2) near = Math.min(near, Math.hypot(xy[i][0] - xy[j][0], xy[i][1] - xy[j][1]));
+    across.push(near);
+  }
+  const median = a => [...a].sort((p, q) => p - q)[a.length >> 1];
+  const step = median(along), row = median(across);
+  return row <= step * JOIN ? row : 0;
+}
+
+function strokePiece(c, [before, [x, y], after], width) {
+  if (!before && !after) { c.beginPath(); c.arc(x, y, width / 2, 0, 7); c.fill(); return; }
+  c.lineWidth = width; c.lineCap = "butt"; c.lineJoin = "round";
+  c.beginPath();
+  if (before) { c.moveTo(before[0], before[1]); c.lineTo(x, y); } else c.moveTo(x, y);
+  if (after) c.lineTo(after[0], after[1]);
+  c.stroke();
+}
+
+// Lit strip, painted crisp offscreen, then laid down softened with a wider halo.
+function drawDiffused() {
+  const g = view.glow.getContext("2d");
+  g.globalCompositeOperation = "source-over";
+  g.clearRect(0, 0, view.glow.width, view.glow.height);
+  g.globalCompositeOperation = "lighter";
+  let i = 0;
+  view.pieces.forEach((seg, k) => {
+    for (const piece of seg) {
+      const R = frame[i], G = frame[i + 1], B = frame[i + 2];
+      i += 3;
+      if (R + G + B < 3) continue;
+      g.fillStyle = g.strokeStyle = `rgb(${R},${G},${B})`;
+      strokePiece(g, piece, view.widths[k]);
+    }
+  });
+  ctx.filter = `blur(${view.width * 1.5}px)`;
+  ctx.globalAlpha = 0.5;
+  ctx.drawImage(view.glow, 0, 0);
+  ctx.filter = `blur(${view.width * 0.25}px)`;
+  ctx.globalAlpha = 1;
+  ctx.drawImage(view.glow, 0, 0);
+  ctx.filter = "none";
 }
 
 function draw() {
@@ -162,6 +249,7 @@ function draw() {
   ctx.drawImage(view.base, 0, 0);
   if (!frame) return;
   ctx.globalCompositeOperation = "lighter";
+  if (diffuse) return drawDiffused();
   const r = view.r;
   let i = 0;
   for (const seg of view.screen) {
@@ -255,13 +343,53 @@ function showState() {
   }
 }
 
+const diffuseBox = document.getElementById("diffuse");
+diffuseBox.checked = diffuse;
+diffuseBox.onchange = () => {
+  diffuse = diffuseBox.checked;
+  try { localStorage.setItem("diffuse", diffuse ? "1" : "0"); } catch (e) { /* just this session */ }
+  computeView();
+};
+
 document.getElementById("brightness").oninput = e => post("/led/brightness", +e.target.value);
 
 // ---- Stream -----------------------------------------------------------------
 
+// The stream stops while the tab is hidden, and after layout.idle_minutes with
+// no input (hosted copies only; locally it is null and never times out).
+let es = null, lastInput = performance.now(), idlePaused = false;
+const conn = document.getElementById("conn"), connText = document.getElementById("connText");
+
+function disconnect() {
+  if (es) { es.close(); es = null; }
+  conn.className = "dot"; connText.textContent = "paused";
+}
+
+function pauseIdle() {
+  idlePaused = true; disconnect();
+  document.getElementById("paused").classList.add("on");
+}
+
+function resume() {
+  idlePaused = false; lastInput = performance.now();
+  document.getElementById("paused").classList.remove("on");
+  if (!es && !document.hidden) connect();
+}
+
+for (const type of ["pointerdown", "pointermove", "keydown", "wheel"])
+  addEventListener(type, () => { lastInput = performance.now(); }, { passive: true });
+document.getElementById("resume").onclick = resume;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) disconnect();
+  else if (!idlePaused) { lastInput = performance.now(); connect(); }
+});
+setInterval(() => {
+  if (es && layout && layout.idle_minutes && performance.now() - lastInput > layout.idle_minutes * 60000) pauseIdle();
+}, 10000);
+
 function connect() {
-  const es = new EventSource("/events");
-  const conn = document.getElementById("conn"), connText = document.getElementById("connText");
+  if (es) return;
+  es = new EventSource("/events");
   es.onopen = () => { conn.className = "dot live"; connText.textContent = "live"; };
   es.onerror = () => { conn.className = "dot stale"; connText.textContent = "reconnecting"; };
   es.addEventListener("frame", e => {
@@ -288,7 +416,7 @@ setInterval(() => {
   buildSensors();
   computeView();
   new ResizeObserver(() => computeView()).observe(document.getElementById("stage"));
-  connect();
+  if (document.hidden) disconnect(); else connect();
   draw();
 })();
 </script>

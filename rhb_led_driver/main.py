@@ -1,6 +1,6 @@
 """Entry point: listen for sensors and control over OSC, render, send to the F16V5.
 
-    python -m rhb_led_driver [--dry-run] [--sim [--sim-host H] [--sim-port P]]
+    python -m rhb_led_driver [--dry-run] [--sim [--sim-host H] [--sim-port P] [--sim-fps F] [--sim-idle M]]
 
 Run from the directory holding settings.toml (ConfigReader reads it from the
 cwd).  OSC control, besides the sensor addresses in sensors.py:
@@ -112,7 +112,11 @@ async def amain(args) -> None:
     if args.sim:
         output = SimOutput(layout, output)
     driver = Driver(layout, output, cfg.DEFAULT_PATTERN)
-    sim_server = await start_simulator(driver, output, args.sim_host, args.sim_port) if args.sim else None
+    sim_server = (
+        await start_simulator(driver, output, args.sim_host, args.sim_port, args.sim_fps, args.sim_idle)
+        if args.sim
+        else None
+    )
 
     server = AsyncIOOSCUDPServer(
         (cfg.OSC_LISTEN_IP, int(cfg.OSC_LISTEN_PORT)), driver.dispatcher(), asyncio.get_running_loop()
@@ -142,6 +146,10 @@ def main() -> None:
     parser.add_argument("--sim", action="store_true", help="serve a live browser view of the LEDs")
     parser.add_argument("--sim-host", default="127.0.0.1", help="0.0.0.0 to view from another device")
     parser.add_argument("--sim-port", type=int, default=8080)
+    parser.add_argument(
+        "--sim-idle", type=float, help="pause a browser's stream after this many minutes untouched (default: never)"
+    )
+    parser.add_argument("--sim-fps", type=float, help="stream to the browser at most this often (default: layout fps)")
     args = parser.parse_args()
     configure_logging()
     level = get_config(REQUIRED_KEYS).LOG_LEVEL
