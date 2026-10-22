@@ -8,6 +8,10 @@ OSC_LISTEN_PORT = 8888
 # Local address on the interface facing the F16V5; "" lets the OS choose.
 SACN_BIND_IP = ""
 
+# The F16V5's address, overriding `host` in the layout; "" uses the layout's.
+# For a controller somewhere other than the car, e.g. on a home network.
+F16V5_HOST = ""
+
 LAYOUT_FILE = "config/layout.toml"
 DEFAULT_PATTERN = "instruments"
 LOG_LEVEL = "INFO"

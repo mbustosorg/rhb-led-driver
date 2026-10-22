@@ -153,7 +153,9 @@ Joining the rig
   listener silently misses `/temperature`.
 * **F16V5 on the Pi's Ethernet**, statically addressed; set `host` in
   `config/layout.toml` and, if needed, `SACN_BIND_IP` to the Pi's Ethernet
-  address.  On the F16V5 set input to E1.31 and, per string port, the start
+  address.  (`F16V5_HOST` in settings.toml overrides `host` for a
+  controller elsewhere, such as a test bench on a home network.)  On the
+  F16V5 set input to E1.31 and, per string port, the start
   universe and pixel count from `layout.toml`.
 
 Output notes

@@ -14,6 +14,7 @@ import asyncio
 import logging
 import signal
 import time
+from dataclasses import replace
 from pathlib import Path
 
 from pythonosc.dispatcher import Dispatcher
@@ -108,6 +109,8 @@ class Driver:
 async def amain(args) -> None:
     cfg = get_config(REQUIRED_KEYS)
     layout = load_layout(Path(cfg.LAYOUT_FILE))
+    if cfg.if_exists("F16V5_HOST"):
+        layout = replace(layout, host=cfg.F16V5_HOST)  # this Pi's controller, e.g. on a test bench
     output = NullOutput(layout) if args.dry_run else SacnOutput(layout, cfg.if_exists("SACN_BIND_IP") or None)
     if args.sim:
         output = SimOutput(layout, output)
