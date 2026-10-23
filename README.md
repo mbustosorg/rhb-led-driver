@@ -86,7 +86,7 @@ Simulator
 
 The real driver runs, and a page draws every pixel at its layout position,
 live, exactly as sent to the F16V5 (brightness cap included).  The page can
-switch patterns, set brightness, and fake each sensor: tick **drive** to
+switch patterns, set brightness and the solid color, and fake each sensor: tick **drive** to
 send a value twice a second like the real senders, untick it to watch the
 pattern fall back when the value goes stale, and hold the poof button (or
 Space).  The page's controls go through the same routes as OSC, so TouchOSC
@@ -139,7 +139,8 @@ stale, so a sender dropping off the network gives a fallback look instead of
 a frozen one.  `sensors.since_rise(name)` gives the time since the last
 press of a button-style input.
 
-Control: `/led/pattern <name>` and `/led/brightness <0..1>`.
+Control: `/led/pattern <name>`, `/led/brightness <0..1>`, and `/led/color <#rrggbb>`
+(the `solid` pattern's color; three floats 0..1 also work).
 
 Joining the rig
 ---------------

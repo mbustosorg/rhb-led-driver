@@ -51,6 +51,7 @@
   .reading { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px;
     display: inline-flex; align-items: center; gap: 6px; }
   input[type=range] { width: 100%; accent-color: var(--accent); margin: 8px 0 2px; }
+  input[type=color] { width: 44px; height: 26px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
   label.drive { font-size: 12px; color: var(--muted); display: inline-flex; gap: 5px; align-items: center;
     cursor: pointer; user-select: none; }
   #poof { width: 100%; padding: 14px; margin-top: 8px; font-weight: 600; touch-action: none; user-select: none; }
@@ -90,6 +91,11 @@
       <div class="row"><span class="name">Master</span><span class="reading" id="brightnessText"></span></div>
       <input type="range" id="brightness" min="0" max="1" step="0.01" value="1">
       <p class="hint" id="capHint"></p>
+    </section>
+    <section>
+      <h2>Color</h2>
+      <div class="row"><span class="name">Solid</span><input type="color" id="color" value="#ffcc8c"></div>
+      <p class="hint">The <b>solid</b> pattern's color, sent as /led/color.</p>
     </section>
     <section id="sensors">
       <h2>Sensors</h2>
@@ -348,6 +354,8 @@ function showState() {
   if (document.activeElement !== bright) bright.value = state.brightness;
   document.getElementById("brightnessText").textContent =
     `${Math.round(state.brightness * 100)}% × cap ${Math.round(layout.max_brightness * 100)}%`;
+  const color = document.getElementById("color");
+  if (document.activeElement !== color && state.color) color.value = state.color;
   for (const c of CONTROLS) {
     const s = state.sensors[c.name];
     if (!s || !c.el) continue;
@@ -369,6 +377,7 @@ diffuseBox.onchange = () => {
 };
 
 document.getElementById("brightness").oninput = e => post("/led/brightness", +e.target.value);
+document.getElementById("color").oninput = e => post("/led/color", e.target.value);
 
 // ---- Stream -----------------------------------------------------------------
 

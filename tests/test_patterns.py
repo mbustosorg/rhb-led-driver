@@ -25,3 +25,20 @@ def test_pattern_renders_valid_frame(name, with_data):
         assert frame[seg.name].shape == (seg.pixels, 3)
         assert np.isfinite(frame[seg.name]).all()
     NullOutput(LAYOUT).send(frame, 0.5)
+
+
+def test_solid_color_follows_led_color():
+    from rhb_led_driver.main import Driver
+
+    driver = Driver(LAYOUT, NullOutput(LAYOUT), "rainbow")
+    driver.handle("/led/color", "#ff8000")
+    driver.handle("/led/pattern", "solid")  # a color set before switching still applies
+    driver.pattern.render(0.0, driver.sensors, driver.frame)
+    for seg in driver.frame.values():
+        assert np.allclose(seg, [1.0, 128 / 255, 0.0])
+    driver.handle("/led/color", 0.0, 0.0, 2.0)  # floats work too, clipped to 0..1
+    driver.pattern.render(0.0, driver.sensors, driver.frame)
+    assert np.allclose(driver.frame[LAYOUT.segments[0].name], [0.0, 0.0, 1.0])
+    assert driver.state()["color"] == "#0000ff"
+    driver.handle("/led/color", "nope")  # ignored
+    assert driver.state()["color"] == "#0000ff"

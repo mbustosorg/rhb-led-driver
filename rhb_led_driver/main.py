@@ -7,6 +7,7 @@ cwd).  OSC control, besides the sensor addresses in sensors.py:
 
     /led/pattern <name>        switch pattern (see patterns/__init__.py)
     /led/brightness <0..1>     scale under the layout's max_brightness
+    /led/color <#rrggbb>       the solid pattern's color (or three floats 0..1)
 """
 
 import argparse
@@ -17,6 +18,7 @@ import time
 from dataclasses import replace
 from pathlib import Path
 
+import numpy as np
 from pythonosc.dispatcher import Dispatcher
 from pythonosc.osc_server import AsyncIOOSCUDPServer
 
@@ -26,6 +28,7 @@ from rhb_led_driver.layout import load_layout
 from rhb_led_driver.output import NullOutput, SacnOutput
 from rhb_led_driver.patterns import PATTERNS
 from rhb_led_driver.patterns.base import blank_frame
+from rhb_led_driver.patterns.solid import COLOR
 from rhb_led_driver.sensors import SensorState
 from rhb_led_driver.simulator import SimOutput, start_simulator
 
@@ -40,15 +43,22 @@ class Driver:
         self.output = output
         self.sensors = SensorState()
         self.brightness = 1.0
+        self.color = COLOR  # set by /led/color; patterns with a color attribute take it
         self.frame = blank_frame(layout)
-        self.pattern = PATTERNS[default_pattern](layout)
+        self.pattern = self._make(default_pattern)
+
+    def _make(self, name):
+        pattern = PATTERNS[name](self.layout)
+        if hasattr(pattern, "color"):
+            pattern.color = self.color
+        return pattern
 
     def set_pattern(self, _address, name, *_):
         if name not in PATTERNS:
             logger.warning("Unknown pattern %r; have %s", name, sorted(PATTERNS))
             return
         logger.info("Pattern -> %s", name)
-        self.pattern = PATTERNS[name](self.layout)
+        self.pattern = self._make(name)
 
     def set_brightness(self, _address, value, *_):
         try:
@@ -56,11 +66,30 @@ class Driver:
         except (TypeError, ValueError):
             logger.warning("Bad brightness %r", value)
 
+    def set_color(self, _address, *args):
+        try:
+            if len(args) == 1:
+                text = str(args[0]).lstrip("#")
+                if len(text) != 6:
+                    raise ValueError
+                color = np.array([int(text[i : i + 2], 16) for i in (0, 2, 4)]) / 255.0
+            else:
+                color = np.clip(np.array([float(a) for a in args[:3]]), 0.0, 1.0)
+                if len(color) != 3:
+                    raise ValueError
+        except (TypeError, ValueError):
+            logger.warning("Bad color %r", args)
+            return
+        self.color = color
+        if hasattr(self.pattern, "color"):
+            self.pattern.color = color
+
     def routes(self) -> dict:
         """OSC address -> handler(address, *args).  Real OSC and the simulator both go through here."""
         routes = {address: self.sensors.on_osc for address in self.sensors.addresses}
         routes["/led/pattern"] = self.set_pattern
         routes["/led/brightness"] = self.set_brightness
+        routes["/led/color"] = self.set_color
         return routes
 
     def handle(self, address: str, *args) -> bool:
@@ -81,6 +110,7 @@ class Driver:
         return {
             "pattern": self.pattern.name,
             "brightness": self.brightness,
+            "color": "#" + "".join(f"{round(c * 255):02x}" for c in self.color),
             "sensors": self.sensors.snapshot(),
         }
 
