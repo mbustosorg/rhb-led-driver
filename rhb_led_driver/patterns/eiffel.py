@@ -47,6 +47,7 @@ SLEW = 7.0  # beam's spring stiffness (rad/s): higher snaps to a heading faster
 
 class Eiffel(Pattern):
     name = "eiffel"
+    own_poof = True  # the poof button brings its own show (BURST_SECONDS); no hose pulse
 
     def __init__(self, layout, rng=None):
         super().__init__(layout)

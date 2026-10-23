@@ -24,6 +24,7 @@ from rhb_led_driver.sensors import SensorState
 
 class Pattern:
     name = "base"
+    own_poof = False  # True if the pattern answers the poof button itself, so the poof overlay stays off
 
     def __init__(self, layout: Layout):
         self.layout = layout

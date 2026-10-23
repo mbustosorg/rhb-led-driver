@@ -29,6 +29,7 @@ from rhb_led_driver.output import NullOutput, SacnOutput
 from rhb_led_driver.patterns import PATTERNS
 from rhb_led_driver.patterns.base import blank_frame
 from rhb_led_driver.patterns.solid import COLOR
+from rhb_led_driver.poof import PoofOverlay
 from rhb_led_driver.sensors import SensorState
 from rhb_led_driver.simulator import SimOutput, start_simulator
 
@@ -45,6 +46,7 @@ class Driver:
         self.brightness = 1.0
         self.color = COLOR  # set by /led/color; patterns with a color attribute take it
         self.frame = blank_frame(layout)
+        self.poof = PoofOverlay(layout)
         self.pattern = self._make(default_pattern)
 
     def _make(self, name):
@@ -121,6 +123,8 @@ class Driver:
             now = time.monotonic()
             try:
                 self.pattern.render(now, self.sensors, self.frame)
+                if not self.pattern.own_poof:
+                    self.poof.render(now, self.sensors, self.frame)
                 self.output.send(self.frame, self.brightness * self.layout.max_brightness)
             except Exception:
                 # One bad frame must not take the lights down; log and keep going.

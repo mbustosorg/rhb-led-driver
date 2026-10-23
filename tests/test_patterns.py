@@ -42,3 +42,31 @@ def test_solid_color_follows_led_color():
     assert driver.state()["color"] == "#0000ff"
     driver.handle("/led/color", "nope")  # ignored
     assert driver.state()["color"] == "#0000ff"
+
+
+@pytest.mark.parametrize("pattern", ["solid", "rainbow", "instruments"])
+def test_poof_pulse_overlays_any_pattern(pattern):
+    from rhb_led_driver.main import Driver
+    from rhb_led_driver.poof import PULSE_COLOR
+
+    driver = Driver(LAYOUT, NullOutput(LAYOUT), pattern)
+    driver.poof.render(0.0, driver.sensors, driver.frame)  # no press yet: nothing drawn
+    driver.pattern.render(0.0, driver.sensors, driver.frame)
+    before = {n: seg.copy() for n, seg in driver.frame.items()}
+    driver.handle("/poof_button", 1)
+    driver.poof.render(0.0, driver.sensors, driver.frame)
+    hoses = [n for n in driver.frame if n.startswith("hose")]
+    assert hoses
+    for name, seg in driver.frame.items():
+        if name in hoses:
+            assert np.allclose(seg[0], PULSE_COLOR, atol=0.01)  # the pulse starts at the gauge end
+            assert np.allclose(seg[-1], before[name][-1])  # and hasn't reached the nozzle
+        else:
+            assert np.array_equal(seg, before[name])
+
+
+def test_eiffel_keeps_its_own_poof():
+    from rhb_led_driver.main import Driver
+
+    assert Driver(LAYOUT, NullOutput(LAYOUT), "eiffel").pattern.own_poof
+    assert not Driver(LAYOUT, NullOutput(LAYOUT), "solid").pattern.own_poof
