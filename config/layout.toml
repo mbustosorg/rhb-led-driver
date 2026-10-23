@@ -37,9 +37,10 @@ start_universe = 3
 path = [[409.6, 150.4], [403.2, 192.0], [380.8, 225.6], [342.4, 243.2], [36.8, 243.8], [6.4, 269.4]]
 
 # The 4' dial: two rings of 144 pixel/m strip, each a full circle starting
-# at the top and running clockwise, around a round matrix of 30 pixel/m strip
-# rows (1.312" apart both ways), with a dark band between the inner ring and
-# the matrix.  The matrix is split over two ports by bands of rows, top down.
+# at the top and running clockwise, around a round matrix of 60 pixel/m strip
+# rows (0.656" apart both ways), with a dark band between the inner ring and
+# the matrix.  The matrix is split over four ports by bands of rows, top down,
+# so no port runs much past 750 pixels and each still refreshes at 40 fps.
 
 [[segment]]
 name = "gauge_ring_outer"
@@ -54,37 +55,49 @@ start_universe = 9
 arc = { center = [419.2, 126.4], radius = 21.0, start_deg = 90, end_deg = -270 }
 
 [[segment]]
-name = "gauge_matrix_1"  # rows 0..14
-pixels = 351
+name = "gauge_matrix_1"  # rows 0..18
+pixels = 777
 start_universe = 12
-disc = { center = [419.2, 126.4], radius = 20.0, pitch = 1.3123, rows = [0, 15] }
+disc = { center = [419.2, 126.4], radius = 20.0, pitch = 0.6562, rows = [0, 19] }
 
 [[segment]]
-name = "gauge_matrix_2"  # rows 15..30
-pixels = 382
-start_universe = 15
-disc = { center = [419.2, 126.4], radius = 20.0, pitch = 1.3123, rows = [15, 31] }
+name = "gauge_matrix_2"  # rows 19..30
+pixels = 716
+start_universe = 17
+disc = { center = [419.2, 126.4], radius = 20.0, pitch = 0.6562, rows = [19, 31] }
+
+[[segment]]
+name = "gauge_matrix_3"  # rows 31..42
+pixels = 712
+start_universe = 22
+disc = { center = [419.2, 126.4], radius = 20.0, pitch = 0.6562, rows = [31, 43] }
+
+[[segment]]
+name = "gauge_matrix_4"  # rows 43..60
+pixels = 720
+start_universe = 27
+disc = { center = [419.2, 126.4], radius = 20.0, pitch = 0.6562, rows = [43, 61] }
 
 [[segment]]
 name = "connector_upper"  # short pipe from the gauge to the tank, top edge
 pixels = 10
-start_universe = 18
+start_universe = 32
 path = [[395.2, 136.0], [372.8, 136.0]]
 
 [[segment]]
 name = "connector_lower"  # short pipe from the gauge to the tank, bottom edge
 pixels = 10
-start_universe = 19
+start_universe = 33
 path = [[395.2, 123.2], [372.8, 123.2]]
 
 [[segment]]
 name = "handle_left"  # front prong, one loop: down the outside, round the tip, up the inside
 pixels = 71
-start_universe = 20
+start_universe = 34
 path = [[428.0, 104.8], [418.4, 74.3], [407.2, 32.6], [412.0, 31.4], [423.2, 72.9], [432.8, 103.2]]
 
 [[segment]]
 name = "handle_right"  # back prong, one loop: down the outside, round the tip, up the inside
 pixels = 69
-start_universe = 21
+start_universe = 35
 path = [[443.6, 108.6], [463.1, 81.0], [471.2, 42.1], [466.4, 41.1], [458.5, 79.0], [439.6, 105.8]]
