@@ -27,6 +27,7 @@ PULSE_SECONDS = 1.0  # time for a poof pulse to travel the hose
 PULSE_WIDTH = 0.08  # fraction of the hose lit by the pulse
 HUE_COLD, HUE_HOT = 0.66, 0.0  # blue, red
 PULSE_COLOR = np.array([1.0, 0.5, 0.0])
+NEUTRAL = np.array([1.0, 0.8, 0.55])  # warm white for no bath data; full RGB white reads bluish on the strips
 CONNECTOR_LEVEL = 0.3
 MATRIX_LEVEL = 0.25
 
@@ -46,11 +47,10 @@ class Instruments(Pattern):
     def render(self, now, sensors, frame):
         temp = sensors.get("water_temp")
         if temp is None:
-            hue, sat = HUE_COLD, 0.0  # white: no bath data
+            color = NEUTRAL
         else:
             heat = np.clip((temp - TEMP_COLD_F) / (TEMP_HOT_F - TEMP_COLD_F), 0.0, 1.0)
-            hue, sat = HUE_COLD + (HUE_HOT - HUE_COLD) * heat, 1.0
-        color = hsv_to_rgb(np.array(hue), sat, np.array(1.0))
+            color = hsv_to_rgb(np.array(HUE_COLD + (HUE_HOT - HUE_COLD) * heat), 1.0, np.array(1.0))
 
         psi = sensors.get("accumulator_pressure")
         breath = 0.15 + 0.85 * wave(now * (1.0 if sensors.get("water_heater_on", 0.0) else 0.25))
@@ -62,7 +62,7 @@ class Instruments(Pattern):
             if name.startswith("gauge_ring"):
                 seg[:] = 0.0
                 if psi is None:
-                    seg[:: max(1, len(seg) // 8)] = 0.2  # dim tick marks: no reading
+                    seg[:: max(1, len(seg) // 8)] = NEUTRAL * 0.2  # dim tick marks: no reading
                 else:
                     seg[pos <= np.clip(psi / PRESSURE_FULL_PSI, 0.0, 1.0)] = color
             elif name.startswith("gauge_matrix"):
@@ -72,7 +72,7 @@ class Instruments(Pattern):
             elif name.startswith("handle"):
                 seg[:] = color * breath
             elif name.startswith("hose"):
-                seg[:] = 0.03
+                seg[:] = NEUTRAL * 0.03
                 if pulse_head is not None:
                     glow = np.clip(1.0 - np.abs(pos - pulse_head) / PULSE_WIDTH, 0.0, 1.0)
                     seg += glow[:, None] * PULSE_COLOR
