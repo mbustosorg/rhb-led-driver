@@ -22,7 +22,7 @@ host = "192.168.1.20"   # F16V5 address (static; the rig has no DHCP)
 fps = 40
 # Brightness ceiling 0..1, applied after the pattern.  Keeps power draw and
 # the current through long runs sane no matter what a pattern asks for.
-max_brightness = 0.6
+max_brightness = 0.8
 
 [[segment]]
 name = "hose_upper"  # top edge of the hose, gauge end out to the nozzle
