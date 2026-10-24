@@ -24,6 +24,20 @@ fps = 40
 # the current through long runs sane no matter what a pattern asks for.
 max_brightness = 0.8
 
+# Power.  watts_per_pixel is one pixel at full white, all three channels on;
+# a segment can set its own.  Each [[supply]] caps what its segments draw
+# together (names or patterns like "gauge_*"): a frame that would go over is
+# dimmed just enough to fit (see rhb_led_driver/power.py), so a supply can be
+# sized to max_watts instead of every pixel at full white.  Segments on no
+# supply are limited only by max_brightness.
+[power]
+watts_per_pixel = 0.30  # 12 V WS2815-type strip at 60/m; check the strip's datasheet W/m
+
+[[supply]]
+name = "gauge"
+max_watts = 400  # full white at the cap would be ~910 W
+segments = ["gauge_*"]
+
 [[segment]]
 name = "hose_upper"  # top edge of the hose, gauge end out to the nozzle
 pixels = 232
@@ -45,12 +59,14 @@ path = [[409.6, 150.4], [403.2, 192.0], [380.8, 225.6], [342.4, 243.2], [36.8, 2
 [[segment]]
 name = "gauge_ring_outer"
 pixels = 551
+watts_per_pixel = 0.25  # 144/m
 start_universe = 5
 arc = { center = [419.2, 126.4], radius = 24.0, start_deg = 90, end_deg = -270 }
 
 [[segment]]
 name = "gauge_ring_inner"
 pixels = 483
+watts_per_pixel = 0.25  # 144/m
 start_universe = 9
 arc = { center = [419.2, 126.4], radius = 21.0, start_deg = 90, end_deg = -270 }
 

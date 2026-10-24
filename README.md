@@ -164,7 +164,10 @@ Output notes
 
 * One sACN universe = 170 RGB pixels; each segment starts on its own universe.
 * `max_brightness` in `layout.toml` caps every pattern, before any OSC
-  brightness: size it to the power supply.
+  brightness.
+* Each `[[supply]]` in `layout.toml` caps the watts its segments draw
+  together: a frame that would go over is dimmed just enough to fit
+  (`power.py`), so size the supply to `max_watts`, not to full white.
 * Unicast only, with no universe discovery and no E1.31 sync (see
   `output.py` for why sync is off).
 * On SIGTERM / Ctrl-C the driver sends a black frame before exiting.

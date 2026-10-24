@@ -91,6 +91,7 @@
       <div class="row"><span class="name">Master</span><span class="reading" id="brightnessText"></span></div>
       <input type="range" id="brightness" min="0" max="1" step="0.01" value="1">
       <p class="hint" id="capHint"></p>
+      <div id="power"></div>
     </section>
     <section>
       <h2>Color</h2>
@@ -354,6 +355,9 @@ function showState() {
   if (document.activeElement !== bright) bright.value = state.brightness;
   document.getElementById("brightnessText").textContent =
     `${Math.round(state.brightness * 100)}% × cap ${Math.round(layout.max_brightness * 100)}%`;
+  document.getElementById("power").innerHTML = Object.entries(state.power || {}).map(([name, p]) =>
+    `<div class="row"><span class="name">${name} supply</span><span class="reading">${Math.round(p.watts)} / ${p.max_watts} W` +
+    (p.scale < 1 ? ` · dimmed to ${Math.round(p.scale * 100)}%` : "") + `</span></div>`).join("");
   const color = document.getElementById("color");
   if (document.activeElement !== color && state.color) color.value = state.color;
   for (const c of CONTROLS) {
