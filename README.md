@@ -55,8 +55,9 @@ Running at boot
     journalctl -u rhb_led_driver -f        # logs
 
 Starting the service sends a black frame, then the `standby` pattern (each
-strip's first pixel blinking red) until a pattern is picked; stopping it
-sends a black frame before exit.
+strip's first pixel blinking red) until a pattern is picked, or for a minute
+before it starts `instruments` by itself; stopping it sends a black frame
+before exit.
 
 Read-only SD card
 -----------------

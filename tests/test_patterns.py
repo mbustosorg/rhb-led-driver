@@ -83,3 +83,15 @@ def test_standby_blinks_only_the_first_pixel_red():
     pattern.render(10 * BLINK_SECONDS + BLINK_SECONDS * (ON_FRACTION + 0.1), SensorState(), frame)  # off
     assert not any(seg.any() for seg in frame.values())
     assert pattern.own_poof
+
+
+def test_standby_hands_off_to_instruments_after_the_timeout():
+    from rhb_led_driver.patterns.standby import THEN, TIMEOUT_SECONDS
+
+    pattern = PATTERNS["standby"](LAYOUT)
+    frame = blank_frame(LAYOUT)
+    assert pattern.handoff(100.0) is None  # not started yet
+    pattern.render(100.0, SensorState(), frame)
+    assert pattern.handoff(100.0 + TIMEOUT_SECONDS - 0.1) is None
+    assert pattern.handoff(100.0 + TIMEOUT_SECONDS) == THEN == "instruments"
+    assert THEN in PATTERNS

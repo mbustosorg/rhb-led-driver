@@ -36,6 +36,10 @@ class Pattern:
         # Each segment's middle in uv: an arc's true center, else its bounding box's.
         self.center_uv = {s.name: (s.center - origin) / span for s in layout.segments}
 
+    def handoff(self, now: float) -> str | None:
+        """The pattern the driver should switch to now, if this one is done; None to keep going."""
+        return None
+
     def render(self, now: float, sensors: SensorState, frame: Frame) -> None:
         """Fill `frame[segment]` in place.  `now` is seconds on the monotonic clock."""
         raise NotImplementedError

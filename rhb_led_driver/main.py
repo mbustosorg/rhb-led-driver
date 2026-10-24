@@ -125,6 +125,9 @@ class Driver:
         while True:
             now = time.monotonic()
             try:
+                if (then := self.pattern.handoff(now)) is not None:
+                    logger.info("%s done", self.pattern.name)
+                    self.set_pattern(None, then)
                 self.pattern.render(now, self.sensors, self.frame)
                 if not self.pattern.own_poof:
                     self.poof.render(now, self.sensors, self.frame)
