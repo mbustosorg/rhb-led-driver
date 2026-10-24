@@ -153,6 +153,7 @@ async def amain(args) -> None:
     if args.sim:
         output = SimOutput(layout, output)
     driver = Driver(layout, output, cfg.DEFAULT_PATTERN)
+    driver.blackout()  # clear whatever the controller was last showing before the first frame
     sim_server = (
         await start_simulator(driver, output, args.sim_host, args.sim_port, args.sim_fps, args.sim_idle)
         if args.sim

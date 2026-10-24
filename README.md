@@ -54,7 +54,9 @@ Running at boot
     sudo systemctl enable --now rhb_led_driver
     journalctl -u rhb_led_driver -f        # logs
 
-Stopping the service sends a black frame before exit.
+Starting the service sends a black frame, then the `standby` pattern (each
+strip's first pixel blinking red) until a pattern is picked; stopping it
+sends a black frame before exit.
 
 Read-only SD card
 -----------------

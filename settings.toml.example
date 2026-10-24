@@ -13,5 +13,5 @@ SACN_BIND_IP = ""
 F16V5_HOST = ""
 
 LAYOUT_FILE = "config/layout.toml"
-DEFAULT_PATTERN = "instruments"
+DEFAULT_PATTERN = "standby"  # blinking red first pixels until a pattern is picked
 LOG_LEVEL = "INFO"

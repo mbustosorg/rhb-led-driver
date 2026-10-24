@@ -6,6 +6,7 @@ from rhb_led_driver.patterns.honeycomb import Honeycomb
 from rhb_led_driver.patterns.instruments import Instruments
 from rhb_led_driver.patterns.rainbow import Rainbow
 from rhb_led_driver.patterns.solid import Solid
+from rhb_led_driver.patterns.standby import Standby
 from rhb_led_driver.patterns.windfire import WindFire
 
-PATTERNS = {p.name: p for p in (Rainbow, Instruments, Honeycomb, CoronalMassEjection, WindFire, Eiffel, Solid)}
+PATTERNS = {p.name: p for p in (Rainbow, Instruments, Honeycomb, CoronalMassEjection, WindFire, Eiffel, Solid, Standby)}

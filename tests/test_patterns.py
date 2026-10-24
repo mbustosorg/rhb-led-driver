@@ -70,3 +70,16 @@ def test_eiffel_keeps_its_own_poof():
 
     assert Driver(LAYOUT, NullOutput(LAYOUT), "eiffel").pattern.own_poof
     assert not Driver(LAYOUT, NullOutput(LAYOUT), "solid").pattern.own_poof
+
+
+def test_standby_blinks_only_the_first_pixel_red():
+    from rhb_led_driver.patterns.standby import BLINK_SECONDS, ON_FRACTION
+
+    pattern = PATTERNS["standby"](LAYOUT)
+    frame = blank_frame(LAYOUT)
+    pattern.render(10 * BLINK_SECONDS, SensorState(), frame)  # start of a cycle: on
+    for seg in frame.values():
+        assert np.allclose(seg[0], [1.0, 0.0, 0.0]) and not seg[1:].any()
+    pattern.render(10 * BLINK_SECONDS + BLINK_SECONDS * (ON_FRACTION + 0.1), SensorState(), frame)  # off
+    assert not any(seg.any() for seg in frame.values())
+    assert pattern.own_poof
