@@ -25,7 +25,7 @@ def sparkle(press: bool, seconds=2.0, fps=40):
     pattern = Eiffel(LAYOUT, rng=np.random.default_rng(1))
     frame = blank_frame(LAYOUT)
     if press:
-        sensors.on_osc("/poof_button", 1)
+        sensors.on_osc("/poof", 1)
     lit = []
     for i in range(int(seconds * fps)):
         clock.t = i / fps

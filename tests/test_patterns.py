@@ -17,7 +17,7 @@ LAYOUT = load_layout(Path(__file__).resolve().parent.parent / "config" / "layout
 def test_pattern_renders_valid_frame(name, with_data):
     sensors = SensorState()
     if with_data:
-        for address, value in [("/pressure", 30), ("/temperature", 120), ("/water_heater", 1), ("/poof_button", 1)]:
+        for address, value in [("/pressure", 30), ("/temperature", 120), ("/water_heater", 1), ("/poof", 1)]:
             sensors.on_osc(address, value)
     frame = blank_frame(LAYOUT)
     PATTERNS[name](LAYOUT).render(12.3, sensors, frame)
@@ -53,7 +53,7 @@ def test_poof_pulse_overlays_any_pattern(pattern):
     driver.poof.render(0.0, driver.sensors, driver.frame)  # no press yet: nothing drawn
     driver.pattern.render(0.0, driver.sensors, driver.frame)
     before = {n: seg.copy() for n, seg in driver.frame.items()}
-    driver.handle("/poof_button", 1)
+    driver.handle("/poof", 1)
     driver.poof.render(0.0, driver.sensors, driver.frame)
     hoses = [n for n in driver.frame if n.startswith("hose")]
     assert hoses

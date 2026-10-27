@@ -26,8 +26,8 @@ def test_bad_value_is_dropped():
 def test_button_rise_survives_quick_release():
     clock = Clock()
     s = SensorState(clock=clock)
-    s.on_osc("/poof_button", 1)
+    s.on_osc("/poof", 1)
     clock.t += 0.1
-    s.on_osc("/poof_button", 0)
+    s.on_osc("/poof", 0)
     clock.t += 0.1
     assert abs(s.since_rise("poof_button") - 0.2) < 1e-9

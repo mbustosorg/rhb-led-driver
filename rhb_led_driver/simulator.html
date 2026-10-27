@@ -439,7 +439,7 @@ setInterval(() => {
   layout = await (await fetch("/layout")).json();
   // Addresses come with the first state; until then fall back to sensors.py's defaults.
   Object.assign(addressOf, { accumulator_pressure: "/pressure", water_temp: "/temperature",
-    water_heater_on: "/water_heater", poof_button: "/poof_button", poof_count: "/poof_count" });
+    water_heater_on: "/water_heater", poof_button: "/poof", poof_count: "/poof_count" });
   document.getElementById("capHint").textContent =
     `layout.toml caps output at ${Math.round(layout.max_brightness * 100)}%; the view shows what the LEDs get.`;
   buildPatterns();

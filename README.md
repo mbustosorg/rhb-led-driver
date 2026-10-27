@@ -134,7 +134,7 @@ Sensors
 | `poof_count` | `/poof_count` | rhb-sensor-monitor | 30 s |
 | `water_temp` | `/temperature` | rhb-water-heater | 30 s |
 | `water_heater_on` | `/water_heater` | rhb-water-heater | 30 s |
-| `poof_button` | `/poof_button` | **nothing yet** (1 = pressed, 0 = released) | never |
+| `poof_button` | `/poof` | rhb-poof-controller (1 = pressed, 0 = released) | never |
 
 Add a sensor with one line in `sensors.SENSORS`.  Patterns read
 `sensors.get(name, default)`, which returns the default once a value goes
@@ -149,6 +149,7 @@ Joining the rig
 ---------------
 
 * **Give the Pi a static address** on the 192.168.1.x WiFi; there is no DHCP.
+  It is `rhbleddriver`, 192.168.1.13.
   Add it to `rhb-sensor-monitor/config/network.txt`.
 * **Add that address to every sender's listener list**:
   rhb-sensor-monitor `--client_ip` and the water heater's `MOBILE_CLIENTS`.

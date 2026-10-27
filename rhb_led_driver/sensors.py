@@ -30,7 +30,7 @@ SENSORS = (
     Sensor("water_temp", "/temperature", stale_after=30.0),
     Sensor("water_heater_on", "/water_heater", stale_after=30.0),
     # No sender yet.  Value 1 = pressed, 0 = released.
-    Sensor("poof_button", "/poof_button", stale_after=float("inf")),
+    Sensor("poof_button", "/poof", stale_after=float("inf")),
 )
 
 
