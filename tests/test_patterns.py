@@ -95,3 +95,22 @@ def test_standby_hands_off_to_instruments_after_the_timeout():
     assert pattern.handoff(100.0 + TIMEOUT_SECONDS - 0.1) is None
     assert pattern.handoff(100.0 + TIMEOUT_SECONDS) == THEN == "instruments"
     assert THEN in PATTERNS
+
+
+@pytest.mark.parametrize("temp", [60, 70, 100, 115, 130, 160, 200])
+def test_instruments_bath_color_runs_blue_to_red_without_green(temp):
+    from rhb_led_driver.patterns.instruments import TEMP_COLD_F, TEMP_HOT_F
+
+    sensors = SensorState()
+    sensors.on_osc("/temperature", temp)
+    frame = blank_frame(LAYOUT)
+    PATTERNS["instruments"](LAYOUT).render(0.0, sensors, frame)
+    handle = next(frame[s.name] for s in LAYOUT.segments if s.name.startswith("handle"))
+    r, g, b = handle[0] / handle[0].max()
+    assert g == pytest.approx(0.0)
+    if temp <= TEMP_COLD_F:
+        assert (r, b) == pytest.approx((0.0, 1.0), abs=0.05)
+    elif temp >= TEMP_HOT_F:
+        assert (r, b) == pytest.approx((1.0, 0.0))
+    else:
+        assert r > 0 and b > 0  # purple in between

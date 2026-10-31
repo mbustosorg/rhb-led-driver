@@ -3,7 +3,7 @@
 Segments are found by name, so new runs join in without code changes:
 
 gauge_ring*    fill with accumulator pressure, in wiring order; color runs
-               from blue at a cold bath to red at a hot one
+               from blue at a cold bath, through purple, to red at a hot one
 gauge_matrix*  fills from the bottom with the same pressure, dimmer
 handle*   breathe in the bath color; faster while the heater is on
 hose*     a low warm glow (the poof overlay in poof.py runs its pulse here)
@@ -22,7 +22,7 @@ from rhb_led_driver.patterns.base import Pattern
 PRESSURE_FULL_PSI = 60.0
 TEMP_COLD_F = 70.0
 TEMP_HOT_F = 160.0
-HUE_COLD, HUE_HOT = 0.66, 0.0  # blue, red
+HUE_COLD, HUE_HOT = 2 / 3, 1.0  # blue, red, the short way round through purple (never green or yellow)
 NEUTRAL = np.array([1.0, 0.8, 0.55])  # warm white for no bath data; full RGB white reads bluish on the strips
 CONNECTOR_LEVEL = 0.3
 MATRIX_LEVEL = 0.25
